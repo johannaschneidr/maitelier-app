@@ -33,17 +33,18 @@ function docToSession(id: string, data: Record<string, unknown>): ClassSession {
 }
 
 export async function getUpcomingSessions(upcomingOnly = true): Promise<ClassSession[]> {
-  const constraints = [
-    orderBy("startTime", "asc")
-  ]
-  if (upcomingOnly) {
-    constraints.unshift(where("startTime", ">=", new Date()))
-  }
-  const q = query(
-    collection(db, "ClassSession"),
-    ...constraints,
-    limit(50)
-  )
+  const q = upcomingOnly
+    ? query(
+        collection(db, "ClassSession"),
+        where("startTime", ">=", new Date()),
+        orderBy("startTime", "asc"),
+        limit(50)
+      )
+    : query(
+        collection(db, "ClassSession"),
+        orderBy("startTime", "asc"),
+        limit(50)
+      )
   const snap = await getDocs(q)
   return snap.docs.map((d) => docToSession(d.id, d.data() as Record<string, unknown>))
 }
