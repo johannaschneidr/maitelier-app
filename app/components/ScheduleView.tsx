@@ -35,14 +35,20 @@ function formatDuration(durationMin: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}min`
 }
 
+function formatTimeShort(d: Date): string {
+  const h = d.getHours()
+  const m = d.getMinutes()
+  const hour = h % 12 || 12
+  const ampm = h < 12 ? "am" : "pm"
+  return m === 0 ? `${hour} ${ampm}` : `${hour}:${m.toString().padStart(2, "0")} ${ampm}`
+}
+
 function formatTimeRange(start: Date, end: Date): string {
-  const s = start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase()
-  const e = end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase()
-  return `${s} - ${e}`
+  return `${formatTimeShort(start)} – ${formatTimeShort(end)}`
 }
 
 function formatStartTime(start: Date): string {
-  return start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase()
+  return formatTimeShort(start)
 }
 
 function formatTimeAndDuration(start: Date, end: Date, durationMin: number): string {
@@ -75,6 +81,7 @@ function applyFilters(
 ): ScheduleItem[] {
   return items.filter((item) => {
     const start = new Date(item.session.startTime)
+    const end = new Date(item.session.endTime)
     const dateKey = start.toDateString()
     const hour = start.getHours()
     const day = start.getDay()
@@ -83,7 +90,8 @@ function applyFilters(
     const isAfterWork = hour >= 18 && hour < 21
     const under75 = item.template.price <= 75
     const forTwo = item.session.spotsLeft >= 2
-    const twoHoursOrLess = item.template.durationMin <= 120
+    const durationMin = Math.round((end.getTime() - start.getTime()) / (60 * 1000))
+    const twoHoursOrLess = durationMin <= 120
 
     if (selectedDates.size > 0 && !selectedDates.has(dateKey)) return false
     if (active.has("favorites") && !savedIds.has(item.session.id)) return false
@@ -140,7 +148,16 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
   const byDay = useMemo(() => groupByDay(fromToday), [fromToday])
   const sortedDays = useMemo(() => {
     const startOfToday = getStartOfToday()
-    const keys = Array.from(byDay.keys()).sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+
+    // When date filter is active: show only the selected dates (from today onward)
+    if (selectedDates.size > 0) {
+      return [...selectedDates]
+        .filter((dateKey: string) => new Date(dateKey).getTime() >= startOfToday.getTime())
+        .sort((a: string, b: string) => new Date(a).getTime() - new Date(b).getTime())
+    }
+
+    // When no date filter: show range from today through last day with workshops
+    const keys = Array.from(byDay.keys()).sort((a: string, b: string) => new Date(a).getTime() - new Date(b).getTime())
     const minDate = startOfToday.getTime()
     const maxDate = keys.length > 0 ? new Date(keys[keys.length - 1]).getTime() : minDate
     const allDates: string[] = []
@@ -148,7 +165,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
       allDates.push(new Date(t).toDateString())
     }
     return allDates
-  }, [byDay])
+  }, [byDay, selectedDates])
 
   const pastFavorites = useMemo(
     () => (filterActive.has("favorites") ? pastItems.filter((item) => savedIds.has(item.session.id)) : []),
