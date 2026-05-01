@@ -143,7 +143,7 @@ async function getOrCreateTemplate(
     category: scraped.category ?? "workshop",
     durationMin,
     price: scraped.price,
-    url: scraped.url,
+    ...(scraped.url ? { url: scraped.url } : {}),
   })
 }
 

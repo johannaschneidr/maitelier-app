@@ -16,12 +16,16 @@
     "scrape:shopify": "tsx scripts/scrapers/shopify.ts",
     "scrape:brainery": "tsx scripts/scrapers/brainery.ts",
     "scrape:resobox": "tsx scripts/scrapers/resobox.ts",
-    "scrape:urbanglass": "tsx scripts/scrapers/urbanglass.ts"
+    "scrape:urbanglass": "tsx scripts/scrapers/urbanglass.ts",
+    "scrape:artsclub": "tsx scripts/scrapers/artsclub.ts",
+    "scrape:craft-society": "tsx scripts/scrapers/craft-society.ts",
+    "scrape:fareharbor": "tsx scripts/scrapers/fareharbor.ts"
   },
   "dependencies": {
     "cheerio": "^1.0.0",
     "firebase": "^12.9.0",
     "next": "16.1.6",
+    "playwright": "^1.59.1",
     "posthog-js": "^1.369.2",
     "react": "19.2.3",
     "react-dom": "19.2.3"
