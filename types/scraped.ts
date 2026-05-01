@@ -53,4 +53,6 @@ export type SourceConfig = {
   placeSearchQuery: string
   /** Whether a working scraper exists for this studio */
   scrapeEnabled: boolean
+  /** Short editorial description for SEO and display */
+  description?: string
 }

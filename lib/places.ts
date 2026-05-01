@@ -6,6 +6,8 @@
 
 const PLACES_BASE = "https://places.googleapis.com/v1"
 
+const MAX_GALLERY_PHOTOS = 5
+
 export interface PlaceDetails {
   placeId: string
   name: string
@@ -15,8 +17,10 @@ export interface PlaceDetails {
   /** Weekday description strings e.g. "Monday: 10:00 AM – 6:00 PM" */
   hours?: string[]
   coordinates?: { lat: number; lng: number }
-  /** CDN photo URL (stable, no key required) */
+  /** First photo — used as hero */
   photoUrl?: string
+  /** All resolved photo URLs (hero first), up to MAX_GALLERY_PHOTOS */
+  photoUrls: string[]
 }
 
 /**
@@ -45,7 +49,6 @@ export async function findPlace(query: string): Promise<PlaceDetails | null> {
     },
     body: JSON.stringify({
       textQuery: query,
-      // Bias results to NYC metro area
       locationBias: {
         circle: {
           center: { latitude: 40.7128, longitude: -74.006 },
@@ -65,10 +68,14 @@ export async function findPlace(query: string): Promise<PlaceDetails | null> {
   const place = data.places?.[0]
   if (!place) return null
 
-  let photoUrl: string | undefined
-  if (place.photos?.[0]?.name) {
-    photoUrl = await fetchPhotoUrl(place.photos[0].name, apiKey)
-  }
+  const photoNames: string[] = (place.photos ?? [])
+    .slice(0, MAX_GALLERY_PHOTOS)
+    .map((p: { name: string }) => p.name)
+    .filter(Boolean)
+
+  const photoUrls = (
+    await Promise.all(photoNames.map((name) => fetchPhotoUrl(name, apiKey)))
+  ).filter((u): u is string => !!u)
 
   return {
     placeId: place.id,
@@ -80,7 +87,8 @@ export async function findPlace(query: string): Promise<PlaceDetails | null> {
     coordinates: place.location
       ? { lat: place.location.latitude, lng: place.location.longitude }
       : undefined,
-    photoUrl,
+    photoUrl: photoUrls[0],
+    photoUrls,
   }
 }
 
@@ -92,7 +100,7 @@ async function fetchPhotoUrl(
   photoName: string,
   apiKey: string
 ): Promise<string | undefined> {
-  const url = `${PLACES_BASE}/${photoName}/media?maxWidthPx=800&skipHttpRedirect=true&key=${apiKey}`
+  const url = `${PLACES_BASE}/${photoName}/media?maxWidthPx=1200&skipHttpRedirect=true&key=${apiKey}`
   const res = await fetch(url)
   if (!res.ok) return undefined
   const data = await res.json()

@@ -1,5 +1,13 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { getSources } from "@/lib/queries"
+import { StudioImage } from "@/app/components/StudioImage"
+
+export const metadata: Metadata = {
+  title: "NYC Craft Studios & Workshops | CraftPass",
+  description:
+    "Browse independent craft studios in New York City offering hands-on workshops in ceramics, glassblowing, woodworking, textiles, jewelry, and more.",
+}
 
 export default async function StudiosPage() {
   const sources = await getSources()
@@ -15,30 +23,31 @@ export default async function StudiosPage() {
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{studios.length} studios in New York City</p>
         </header>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {studios.map((studio) => (
             <Link
               key={studio.id}
               href={`/studios/${studio.slug}`}
-              className="group rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm hover:shadow-md transition"
+              className="group border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm hover:shadow-md transition"
             >
-              {studio.photoUrl ? (
-                <div className="aspect-video overflow-hidden bg-zinc-100 dark:bg-zinc-800">
-                  <img
-                    src={studio.photoUrl}
-                    alt={studio.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                  />
-                </div>
-              ) : (
-                <div className="aspect-video bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-                  <span className="text-2xl text-zinc-300 dark:text-zinc-600">✦</span>
-                </div>
-              )}
+              <div className="aspect-video overflow-hidden bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                <StudioImage
+                  slug={studio.slug!}
+                  name={studio.name}
+                  fallbackUrl={studio.photoUrl}
+                  imgClassName="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                  placeholderClassName="flex items-center justify-center w-full h-full"
+                />
+              </div>
               <div className="p-3">
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 leading-snug">{studio.name}</h2>
                 {studio.neighborhood && (
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{studio.neighborhood}</p>
+                )}
+                {studio.description && (
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 leading-relaxed line-clamp-2">
+                    {studio.description}
+                  </p>
                 )}
               </div>
             </Link>

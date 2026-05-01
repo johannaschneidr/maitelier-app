@@ -23,8 +23,12 @@ export type Source = {
     phone?: string
     /** GPS coordinates */
     coordinates?: { lat: number; lng: number }
-    /** Photo URL from Places API */
+    /** Hero photo URL (first Places API photo) */
     photoUrl?: string
+    /** Gallery photo URLs from Places API (hero first, up to 5) */
+    photoUrls?: string[]
+    /** Short editorial description for SEO and display */
+    description?: string
     createdAt: Date
   }
   

@@ -77,6 +77,8 @@ async function seedStudios() {
       phone: placeDetails?.phone,
       coordinates: placeDetails?.coordinates,
       photoUrl: placeDetails?.photoUrl,
+      photoUrls: placeDetails?.photoUrls,
+      description: studio.description,
       createdAt: new Date(),
     }
 
