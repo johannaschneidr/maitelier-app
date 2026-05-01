@@ -146,6 +146,8 @@ export async function getSources(): Promise<Source[]> {
       phone: data.phone as string | undefined,
       coordinates: data.coordinates as { lat: number; lng: number } | undefined,
       photoUrl: data.photoUrl as string | undefined,
+      photoUrls: data.photoUrls as string[] | undefined,
+      description: data.description as string | undefined,
       createdAt: toDate(data.createdAt)
     }
   })
@@ -172,6 +174,8 @@ export async function getSourceBySlug(slug: string): Promise<Source | null> {
     phone: data.phone as string | undefined,
     coordinates: data.coordinates as { lat: number; lng: number } | undefined,
     photoUrl: data.photoUrl as string | undefined,
+    photoUrls: data.photoUrls as string[] | undefined,
+    description: data.description as string | undefined,
     createdAt: toDate(data.createdAt)
   }
 }

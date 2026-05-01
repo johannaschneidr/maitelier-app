@@ -10,6 +10,8 @@
     "seed": "tsx scripts/seed.ts",
     "seed:dev": "tsx scripts/seed-dev-data.ts",
     "seed:studios": "tsx --env-file=.env.local scripts/seed-studios.ts",
+    "update:descriptions": "tsx --env-file=.env.local scripts/update-source-descriptions.ts",
+    "update:photos": "tsx --env-file=.env.local scripts/update-studio-photos.ts",
     "scrape": "tsx scripts/run-scrape-and-import.ts",
     "scrape:shopify": "tsx scripts/scrapers/shopify.ts",
     "scrape:brainery": "tsx scripts/scrapers/brainery.ts",
