@@ -31,6 +31,9 @@ function buildItems(
         hostName: source?.name ?? "Host"
       }
       if (source?.neighborhood) item.neighborhood = source.neighborhood
+      if (source?.address) item.address = source.address
+      if (source?.slug) item.sourceSlug = source.slug
+      if (template.url) item.classUrl = template.url
       return item
     })
     .filter((x): x is ScheduleItem => x !== null)
