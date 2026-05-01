@@ -9,7 +9,7 @@
 import type { SourceConfig } from "../../types/scraped"
 
 export const SOURCES: SourceConfig[] = [
-  // ─── FAREHARBOR (needs Playwright or FH partner API key) ───────────────────
+  // ─── FAREHARBOR (Playwright calendar scraper) ──────────────────────────────
   // Wick & Pour removed: quality bar not met for platform.
   // Firestore doc AW8qjq0Ne5XlGpUid8v5 can be deleted from Firebase console.
   {
@@ -23,7 +23,7 @@ export const SOURCES: SourceConfig[] = [
     address: "142 13th Street, Brooklyn, NY 11215",
     instagramHandle: "brooklynglass",
     placeSearchQuery: "Brooklyn Glass glassblowing studio 142 13th Street Brooklyn",
-    scrapeEnabled: false,
+    scrapeEnabled: true,
   },
   {
     name: "Craftsman Ave",
@@ -36,7 +36,7 @@ export const SOURCES: SourceConfig[] = [
     address: "68 34th St Building 6, Brooklyn, NY 11232",
     instagramHandle: "craftsmanave",
     placeSearchQuery: "Craftsman Ave workshop studio Industry City Brooklyn",
-    scrapeEnabled: false,
+    scrapeEnabled: true,
   },
 
   // ─── SHOPIFY (products.json — scrape enabled) ──────────────────────────────
@@ -69,8 +69,10 @@ export const SOURCES: SourceConfig[] = [
     scrapeEnabled: true,
   },
 
-  // ─── ACUITY (JS-rendered — needs Playwright) ───────────────────────────────
+  // ─── SQUARESPACE (server-rendered event listing, Cheerio scraper) ──────────
   {
+    // Events page is server-rendered Squarespace; Acuity links are in the excerpts
+    // for booking but price is not on listing page (price = 0 in DB).
     name: "ArtsClub",
     slug: "artsclub",
     url: "https://www.artsclubstudios.com",
@@ -81,7 +83,7 @@ export const SOURCES: SourceConfig[] = [
     address: "311 East 3rd Street, New York, NY 10009",
     instagramHandle: "artsclubnyc",
     placeSearchQuery: "ArtsClub art studio 311 East 3rd Street New York",
-    scrapeEnabled: false,
+    scrapeEnabled: true,
   },
   {
     name: "Brooklyn Metal Works",
@@ -98,6 +100,20 @@ export const SOURCES: SourceConfig[] = [
   },
 
   // ─── CUSTOM HTML SCRAPERS (scrape enabled) ─────────────────────────────────
+  {
+    // Wix-powered site; event content is JS-rendered — uses Playwright scraper.
+    name: "Craft Society",
+    slug: "craft-society",
+    url: "https://www.craft-society.com",
+    bookingUrl: "https://www.craft-society.com/event-list",
+    type: "scraper",
+    platform: "custom",
+    neighborhood: "Park Slope",
+    address: "569 Union Street, Brooklyn, NY 11215",
+    instagramHandle: "craftsocietybk",
+    placeSearchQuery: "Craft Society Brooklyn 569 Union Street",
+    scrapeEnabled: true,
+  },
   {
     name: "Brooklyn Brainery",
     slug: "brooklyn-brainery",

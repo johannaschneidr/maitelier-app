@@ -15,6 +15,9 @@ import { scrapeShopify } from "./scrapers/shopify"
 import { scrapeBrooklynBrainery } from "./scrapers/brainery"
 import { scrapeResoBox } from "./scrapers/resobox"
 import { scrapeUrbanGlass } from "./scrapers/urbanglass"
+import { scrapeArtsClub } from "./scrapers/artsclub"
+import { scrapeCraftSociety } from "./scrapers/craft-society"
+import { scrapeFareHarbor } from "./scrapers/fareharbor"
 import type { ScrapedClass } from "../types/scraped"
 
 const SCRAPERS: Record<string, () => Promise<ScrapedClass[]>> = {
@@ -22,6 +25,9 @@ const SCRAPERS: Record<string, () => Promise<ScrapedClass[]>> = {
   brainery: scrapeBrooklynBrainery,
   resobox: scrapeResoBox,
   urbanglass: scrapeUrbanGlass,
+  artsclub: scrapeArtsClub,
+  "craft-society": scrapeCraftSociety,
+  fareharbor: scrapeFareHarbor,
 }
 
 /** Run all enabled scrapers and combine results */
