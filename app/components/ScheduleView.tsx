@@ -1,6 +1,30 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
+import posthog from "posthog-js"
+
+const FAVORITES_STORAGE_KEY = "craftpass-favorites"
+
+function loadSavedIds(): Set<string> {
+  if (typeof window === "undefined") return new Set()
+  try {
+    const raw = localStorage.getItem(FAVORITES_STORAGE_KEY)
+    if (!raw) return new Set()
+    const arr = JSON.parse(raw) as string[]
+    return new Set(Array.isArray(arr) ? arr : [])
+  } catch {
+    return new Set()
+  }
+}
+
+function saveSavedIds(ids: Set<string>): void {
+  if (typeof window === "undefined") return
+  try {
+    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...ids]))
+  } catch {
+    // ignore
+  }
+}
 import Link from "next/link"
 import type { ScheduleItem } from "@/types/schedule"
 
@@ -39,7 +63,7 @@ function formatTimeShort(d: Date): string {
   const h = d.getHours()
   const m = d.getMinutes()
   const hour = h % 12 || 12
-  const ampm = h < 12 ? "am" : "pm"
+  const ampm = h < 12 ? "AM" : "PM"
   return m === 0 ? `${hour} ${ampm}` : `${hour}:${m.toString().padStart(2, "0")} ${ampm}`
 }
 
@@ -124,8 +148,12 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false)
   const [minimalView, setMinimalView] = useState(false)
   const [pastEventsExpanded, setPastEventsExpanded] = useState(false)
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
+  const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set())
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    setSavedIds(loadSavedIds())
+  }, [])
 
   const neighborhoods = useMemo(
     () => [...new Set(items.map((i) => i.neighborhood).filter((n): n is string => Boolean(n)))].sort(),
@@ -180,8 +208,10 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
   const toggleFilter = (id: FilterId) => {
     setFilterActive((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      const enabling = !next.has(id)
+      if (enabling) next.add(id)
+      else next.delete(id)
+      posthog.capture("filter_toggled", { filter_id: id, enabled: enabling })
       return next
     })
   }
@@ -189,8 +219,10 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
   const toggleNeighborhood = (n: string) => {
     setSelectedNeighborhoods((prev) => {
       const next = new Set(prev)
-      if (next.has(n)) next.delete(n)
-      else next.add(n)
+      const selecting = !next.has(n)
+      if (selecting) next.add(n)
+      else next.delete(n)
+      posthog.capture("neighborhood_filter_changed", { neighborhood: n, selected: selecting })
       return next
     })
   }
@@ -198,8 +230,10 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
   const toggleDate = (dateKey: string) => {
     setSelectedDates((prev) => {
       const next = new Set(prev)
-      if (next.has(dateKey)) next.delete(dateKey)
-      else next.add(dateKey)
+      const selecting = !next.has(dateKey)
+      if (selecting) next.add(dateKey)
+      else next.delete(dateKey)
+      posthog.capture("date_filter_changed", { date: dateKey, selected: selecting })
       return next
     })
   }
@@ -209,22 +243,56 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
     return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
   }
 
-  const toggleSave = (e: React.MouseEvent, sessionId: string) => {
+  const toggleSave = (e: React.MouseEvent, sessionId: string, item: ScheduleItem) => {
     e.preventDefault()
     e.stopPropagation()
     setSavedIds((prev) => {
       const next = new Set(prev)
-      if (next.has(sessionId)) next.delete(sessionId)
-      else next.add(sessionId)
+      if (next.has(sessionId)) {
+        next.delete(sessionId)
+        posthog.capture("class_unsaved", {
+          session_id: sessionId,
+          class_title: item.template.title,
+          category: item.template.category,
+          price: item.template.price,
+          neighborhood: item.neighborhood,
+          host_name: item.hostName,
+        })
+      } else {
+        next.add(sessionId)
+        posthog.capture("class_saved", {
+          session_id: sessionId,
+          class_title: item.template.title,
+          category: item.template.category,
+          price: item.template.price,
+          neighborhood: item.neighborhood,
+          host_name: item.hostName,
+        })
+      }
+      saveSavedIds(next)
       return next
     })
   }
 
-  const toggleExpanded = (sessionId: string) => {
+  const toggleExpanded = (sessionId: string, item?: ScheduleItem) => {
     setExpandedIds((prev) => {
       const next = new Set(prev)
-      if (next.has(sessionId)) next.delete(sessionId)
-      else next.add(sessionId)
+      const expanding = !next.has(sessionId)
+      if (expanding) {
+        next.add(sessionId)
+        if (item) {
+          posthog.capture("class_details_expanded", {
+            session_id: sessionId,
+            class_title: item.template.title,
+            category: item.template.category,
+            price: item.template.price,
+            neighborhood: item.neighborhood,
+            host_name: item.hostName,
+          })
+        }
+      } else {
+        next.delete(sessionId)
+      }
       return next
     })
   }
@@ -234,12 +302,12 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
       {/* Top row: Minimal view toggle, right-aligned */}
       <div className="flex justify-end">
         <label className="flex cursor-pointer items-center gap-2">
-          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Minimal view</span>
+          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Minimize</span>
           <button
             type="button"
             role="switch"
             aria-checked={minimalView}
-            onClick={() => setMinimalView((v) => !v)}
+            onClick={() => { const next = !minimalView; setMinimalView(next); posthog.capture("minimal_view_toggled", { enabled: next }) }}
             className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-500 ${
               minimalView ? "bg-zinc-900 dark:bg-zinc-100" : "bg-zinc-200 dark:bg-zinc-700"
             }`}
@@ -356,7 +424,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
         </div>
       </div>
 
-      {/* Card list, grouped by day (today onward; show "No classes" for empty dates) */}
+      {/* Card list, grouped by day (today onward; show "No classes found" for empty dates) */}
       <div className="space-y-8">
         {sortedDays.map((dayKey) => {
           const dayItems = byDay.get(dayKey) ?? []
@@ -366,7 +434,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                 {formatDayLabel(dayKey)}
               </h2>
               {dayItems.length === 0 ? (
-                <p className="text-sm text-zinc-500 dark:text-zinc-500">No classes</p>
+                <p className="text-sm text-zinc-500 dark:text-zinc-500">No classes found</p>
               ) : (
               <ul className="space-y-2">
                 {dayItems.map((item) => {
@@ -375,6 +443,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                   const saved = savedIds.has(item.session.id)
                   const expanded = expandedIds.has(item.session.id)
                   const isFull = item.session.spotsLeft === 0
+                  const availabilityUnknown = item.session.capacity < 0 || item.session.spotsLeft < 0
                   return (
                     <li
                       key={item.session.id}
@@ -383,7 +452,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                       {/* Heart icon: top right (same position in both modes) */}
                       <button
                         type="button"
-                        onClick={(e) => toggleSave(e, item.session.id)}
+                        onClick={(e) => toggleSave(e, item.session.id, item)}
                         className={`absolute top-1.5 right-2 p-1.5 rounded-md transition shrink-0 z-10 ${saved ? "text-red-500" : "text-zinc-400 hover:text-red-500"}`}
                         aria-label={saved ? "Unsave" : "Save"}
                         title={saved ? "Unsave" : "Save"}
@@ -404,7 +473,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                           {!expanded ? (
                             <button
                               type="button"
-                              onClick={() => toggleExpanded(item.session.id)}
+                              onClick={() => toggleExpanded(item.session.id, item)}
                               className="w-full text-left px-3 py-3 sm:px-3.5 sm:py-3.5 flex items-center gap-2 pr-12 min-w-0"
                             >
                               <span className={`${cardText} text-zinc-500 dark:text-zinc-500 shrink-0`}>
@@ -412,12 +481,13 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                               </span>
                               <span className={`${cardText} font-semibold text-zinc-900 dark:text-zinc-100 truncate min-w-0`}>
                                 {item.template.title}
+                                {item.template.price > 0 && (
+                                  <span className="font-normal text-zinc-600 dark:text-zinc-400">
+                                    {" · "}
+                                    ${item.template.price}
+                                  </span>
+                                )}
                               </span>
-                              {item.template.price > 0 && (
-                                <span className={`${cardText} text-zinc-600 dark:text-zinc-400 shrink-0 ml-auto`}>
-                                  ${item.template.price}
-                                </span>
-                              )}
                             </button>
                           ) : (
                             <div className="px-3 pt-3 pb-2.5 sm:px-3.5 sm:pt-3.5 sm:pb-3">
@@ -448,11 +518,18 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                 tabIndex={0}
                               >
                                 <p className={`${cardText} text-zinc-500 dark:text-zinc-500`}>
-                                  {item.hostName}
-                                  {item.neighborhood ? `, ${item.neighborhood}` : ""}
+                                  {item.sourceSlug ? (
+                                    <Link href={`/studios/${item.sourceSlug}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>{item.hostName}</Link>
+                                  ) : item.hostName}
+                                  {item.address ? ` · ${item.address}` : ""}
+                                  {item.neighborhood ? ` · ${item.neighborhood}` : ""}
                                 </p>
                                 <p className={`${cardText} text-zinc-500 dark:text-zinc-500 mt-1`}>
-                                  {item.session.spotsLeft} of {item.session.capacity} spots left
+                                  {availabilityUnknown
+                                    ? <span className="italic">Check page for availability</span>
+                                    : item.session.capacity >= 0
+                                      ? `${item.session.spotsLeft} of ${item.session.capacity} spots left`
+                                      : `${item.session.spotsLeft} spots left`}
                                 </p>
                               </div>
                               <div className="flex items-center justify-between gap-2 pt-2">
@@ -469,16 +546,31 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                       Class full
                                     </span>
                                   )}
-                                  <Link
-                                    href={`/sessions/${item.session.id}`}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className={`${cardText} font-medium rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
-                                  >
-                                    {isFull ? "Studio page" : "Book"}
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" aria-hidden>
-                                      <path fillRule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clipRule="evenodd" />
-                                    </svg>
-                                  </Link>
+                                  {item.classUrl ? (
+                                    <a
+                                      href={item.classUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => { e.stopPropagation(); posthog.capture("book_class_clicked", { session_id: item.session.id, class_title: item.template.title, category: item.template.category, price: item.template.price, neighborhood: item.neighborhood, host_name: item.hostName, is_full: isFull }) }}
+                                      className={`${cardText} font-medium rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
+                                    >
+                                      Book
+                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" aria-hidden>
+                                        <path fillRule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clipRule="evenodd" />
+                                      </svg>
+                                    </a>
+                                  ) : item.sourceSlug ? (
+                                    <Link
+                                      href={`/studios/${item.sourceSlug}`}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className={`${cardText} font-medium rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
+                                    >
+                                      Studio
+                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" aria-hidden>
+                                        <path fillRule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clipRule="evenodd" />
+                                      </svg>
+                                    </Link>
+                                  ) : null}
                                 </div>
                               </div>
                             </div>
@@ -488,7 +580,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                         <>
                           <button
                             type="button"
-                            onClick={() => toggleExpanded(item.session.id)}
+                            onClick={() => toggleExpanded(item.session.id, item)}
                             className="w-full text-left px-3 pt-3 pb-0 sm:px-3.5 sm:pt-3.5 flex flex-col gap-0.5 pr-12"
                           >
                             <p className={`${cardText} text-zinc-500 dark:text-zinc-500`}>
@@ -507,22 +599,29 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                           </button>
                           {expanded && (
                             <div
-                              className="px-3 pt-1.5 sm:px-3.5 py-1 sm:py-0.5"
+                              className="px-3 pt-1.5 sm:px-3.5"
                               onClick={() => toggleExpanded(item.session.id)}
                               onKeyDown={(e) => e.key === "Enter" && toggleExpanded(item.session.id)}
                               role="button"
                               tabIndex={0}
                             >
                               <p className={`${cardText} text-zinc-500 dark:text-zinc-500`}>
-                                {item.hostName}
-                                {item.neighborhood ? `, ${item.neighborhood}` : ""}
+                                {item.sourceSlug ? (
+                                  <Link href={`/studios/${item.sourceSlug}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>{item.hostName}</Link>
+                                ) : item.hostName}
+                                {item.address ? ` · ${item.address}` : ""}
+                                {item.neighborhood ? ` · ${item.neighborhood}` : ""}
                               </p>
                               <p className={`${cardText} text-zinc-500 dark:text-zinc-500 mt-1`}>
-                                {item.session.spotsLeft} of {item.session.capacity} spots left
+                                {availabilityUnknown
+                                  ? <span className="italic">Check page for availability</span>
+                                  : item.session.capacity >= 0
+                                    ? `${item.session.spotsLeft} of ${item.session.capacity} spots left`
+                                    : `${item.session.spotsLeft} spots left`}
                               </p>
                             </div>
                           )}
-                          <div className="flex items-center justify-between gap-2 px-3 pb-2.5 sm:px-3.5 sm:pb-3 pt-0">
+                          <div className={`flex items-center justify-between gap-2 px-3 pb-2.5 sm:px-3.5 sm:pb-3 ${expanded ? "pt-2 sm:pt-2" : "pt-0"}`}>
                             <button
                               type="button"
                               onClick={() => toggleExpanded(item.session.id)}
@@ -536,16 +635,31 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                   Class full
                                 </span>
                               )}
-                              <Link
-                                href={`/sessions/${item.session.id}`}
-                                onClick={(e) => e.stopPropagation()}
-                                className={`${cardText} font-medium rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
-                              >
-                                {isFull ? "Studio page" : "Book"}
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" aria-hidden>
-                                  <path fillRule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clipRule="evenodd" />
-                                </svg>
-                              </Link>
+                              {item.classUrl ? (
+                                <a
+                                  href={item.classUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className={`${cardText} font-medium rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
+                                >
+                                  Book
+                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" aria-hidden>
+                                    <path fillRule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clipRule="evenodd" />
+                                  </svg>
+                                </a>
+                              ) : item.sourceSlug ? (
+                                <Link
+                                  href={`/studios/${item.sourceSlug}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className={`${cardText} font-medium rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
+                                >
+                                  Studio
+                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" aria-hidden>
+                                    <path fillRule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clipRule="evenodd" />
+                                  </svg>
+                                </Link>
+                              ) : null}
                             </div>
                           </div>
                         </>
@@ -564,7 +678,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
         <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
           <button
             type="button"
-            onClick={() => setPastEventsExpanded((e) => !e)}
+            onClick={() => { const next = !pastEventsExpanded; setPastEventsExpanded(next); if (next) posthog.capture("past_events_expanded", { past_count: pastFavorites.length }) }}
             className="flex w-full items-center justify-between gap-2 text-left"
           >
             <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -603,15 +717,21 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                 {item.template.title}
                               </h3>
                               <p className={`${cardText} text-zinc-600 dark:text-zinc-400 mt-0.5`}>
-                                {item.hostName}
-                                {item.neighborhood ? `, ${item.neighborhood}` : ""}
+                                {item.sourceSlug ? (
+                                  <Link href={`/studios/${item.sourceSlug}`} className="hover:underline">{item.hostName}</Link>
+                                ) : item.hostName}
+                                {item.address ? ` · ${item.address}` : ""}
+                                {item.neighborhood ? ` · ${item.neighborhood}` : ""}
                               </p>
-                              <Link
-                                href={`/sessions/${item.session.id}`}
-                                className="mt-2 inline-block text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:underline"
-                              >
-                                View session →
-                              </Link>
+                              {item.classUrl ? (
+                                <a href={item.classUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:underline">
+                                  View class →
+                                </a>
+                              ) : item.sourceSlug ? (
+                                <Link href={`/studios/${item.sourceSlug}`} className="mt-2 inline-block text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:underline">
+                                  Studio page →
+                                </Link>
+                              ) : null}
                             </li>
                           )
                         })}
@@ -629,7 +749,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
         <div className="flex justify-center pt-2">
           <button
             type="button"
-            onClick={() => setSavedIds(new Set())}
+            onClick={() => { posthog.capture("all_favorites_cleared", { cleared_count: savedIds.size }); setSavedIds(new Set()) }}
             className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 underline"
           >
             Remove all

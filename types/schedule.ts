@@ -21,4 +21,10 @@ export type ScheduleItem = {
   hostName: string
   /** Studio neighborhood for proximity/location display. */
   neighborhood?: string
+  /** Venue address */
+  address?: string
+  /** Studio slug for linking to /studios/[slug] */
+  sourceSlug?: string
+  /** Direct booking URL for this specific class */
+  classUrl?: string
 }
