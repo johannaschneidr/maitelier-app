@@ -17,7 +17,7 @@ export function StudioImage({ slug, name, fallbackUrl, imgClassName, placeholder
   if (failed) {
     return (
       <div className={placeholderClassName}>
-        <span className="text-2xl text-zinc-300 dark:text-zinc-600">&#10022;</span>
+        <span className="text-2xl text-cream-soft/40">&#10022;</span>
       </div>
     )
   }

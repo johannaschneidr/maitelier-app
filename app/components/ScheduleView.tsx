@@ -302,18 +302,18 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
       {/* Top row: Minimal view toggle, right-aligned */}
       <div className="flex justify-end">
         <label className="flex cursor-pointer items-center gap-2">
-          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Minimize</span>
+          <span className="font-sans text-sm font-medium text-cream-soft">Minimize</span>
           <button
             type="button"
             role="switch"
             aria-checked={minimalView}
             onClick={() => { const next = !minimalView; setMinimalView(next); posthog.capture("minimal_view_toggled", { enabled: next }) }}
-            className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-500 ${
-              minimalView ? "bg-zinc-900 dark:bg-zinc-100" : "bg-zinc-200 dark:bg-zinc-700"
+            className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-warm ${
+              minimalView ? "bg-cream" : "bg-stone-warm/20"
             }`}
           >
             <span
-              className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white dark:bg-zinc-900 shadow ring-0 transition-transform mt-0.5 ml-0.5 ${
+              className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-claret shadow ring-0 transition-transform mt-0.5 ml-0.5 ${
                 minimalView ? "translate-x-5" : "translate-x-0"
               }`}
             />
@@ -330,10 +330,10 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
               key={f.id}
               type="button"
               onClick={() => toggleFilter(f.id)}
-              className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+              className={`font-sans rounded-full px-3 py-1.5 text-xs font-medium transition ${
                 active
-                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                  : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+                  ? "bg-cream text-claret"
+                  : "bg-stone-warm/20 text-cream-soft hover:bg-stone-warm/30"
               }`}
             >
               {f.label}
@@ -344,10 +344,10 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
           <button
             type="button"
             onClick={() => { setDateDropdownOpen(false); setNeighborhoodDropdownOpen((o) => !o) }}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium transition border ${
+            className={`font-sans rounded-full px-3 py-1.5 text-xs font-medium transition border ${
               selectedNeighborhoods.size > 0
-                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-transparent"
-                : "bg-transparent border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-500"
+                ? "bg-cream text-claret border-transparent"
+                : "bg-transparent border-stone-warm/30 text-cream-soft hover:border-stone-warm/40"
             }`}
           >
             Neighborhood{selectedNeighborhoods.size > 0 ? ` (${selectedNeighborhoods.size})` : ""}
@@ -355,23 +355,23 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
           {neighborhoodDropdownOpen && (
             <>
               <div className="fixed inset-0 z-10" aria-hidden onClick={() => setNeighborhoodDropdownOpen(false)} />
-              <div className="absolute left-0 top-full z-20 mt-1 min-w-[160px] rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 py-1 shadow-lg">
+              <div className="absolute left-0 top-full z-20 mt-1 min-w-[160px] rounded-lg border border-stone-warm/20 bg-claret-deep py-1 shadow-lg">
                 {neighborhoods.length === 0 ? (
-                  <p className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-500">No neighborhoods</p>
+                  <p className="font-sans px-3 py-2 text-xs text-stone-warm">No neighborhoods</p>
                 ) : (
                   <>
                     {selectedNeighborhoods.size > 0 && (
                       <button
                         type="button"
                         onClick={() => setSelectedNeighborhoods(new Set())}
-                        className="w-full px-3 py-1.5 text-left text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        className="font-sans w-full px-3 py-1.5 text-left text-xs font-medium text-cream-soft hover:bg-stone-warm/10"
                       >
                         Remove all
                       </button>
                     )}
                     {neighborhoods.map((n) => (
-                      <label key={n} className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">
-                        <input type="checkbox" checked={selectedNeighborhoods.has(n)} onChange={() => toggleNeighborhood(n)} className="rounded border-zinc-300 dark:border-zinc-600" />
+                      <label key={n} className="font-sans flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs text-cream-soft hover:bg-stone-warm/10">
+                        <input type="checkbox" checked={selectedNeighborhoods.has(n)} onChange={() => toggleNeighborhood(n)} className="rounded border-stone-warm/30" />
                         {n}
                       </label>
                     ))}
@@ -385,10 +385,10 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
           <button
             type="button"
             onClick={() => { setNeighborhoodDropdownOpen(false); setDateDropdownOpen((o) => !o) }}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium transition border ${
+            className={`font-sans rounded-full px-3 py-1.5 text-xs font-medium transition border ${
               selectedDates.size > 0
-                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-transparent"
-                : "bg-transparent border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-500"
+                ? "bg-cream text-claret border-transparent"
+                : "bg-transparent border-stone-warm/30 text-cream-soft hover:border-stone-warm/40"
             }`}
           >
             Date{selectedDates.size > 0 ? ` (${selectedDates.size})` : ""}
@@ -396,23 +396,23 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
           {dateDropdownOpen && (
             <>
               <div className="fixed inset-0 z-10" aria-hidden onClick={() => setDateDropdownOpen(false)} />
-              <div className="absolute left-0 top-full z-20 mt-1 min-w-[200px] max-h-64 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 py-1 shadow-lg">
+              <div className="absolute left-0 top-full z-20 mt-1 min-w-[200px] max-h-64 overflow-y-auto rounded-lg border border-stone-warm/20 bg-claret-deep py-1 shadow-lg">
                 {availableDates.length === 0 ? (
-                  <p className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-500">No dates</p>
+                  <p className="font-sans px-3 py-2 text-xs text-stone-warm">No dates</p>
                 ) : (
                   <>
                     {selectedDates.size > 0 && (
                       <button
                         type="button"
                         onClick={() => setSelectedDates(new Set())}
-                        className="w-full px-3 py-1.5 text-left text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        className="font-sans w-full px-3 py-1.5 text-left text-xs font-medium text-cream-soft hover:bg-stone-warm/10"
                       >
                         Remove all
                       </button>
                     )}
                     {availableDates.map((dateKey) => (
-                      <label key={dateKey} className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">
-                        <input type="checkbox" checked={selectedDates.has(dateKey)} onChange={() => toggleDate(dateKey)} className="rounded border-zinc-300 dark:border-zinc-600" />
+                      <label key={dateKey} className="font-sans flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs text-cream-soft hover:bg-stone-warm/10">
+                        <input type="checkbox" checked={selectedDates.has(dateKey)} onChange={() => toggleDate(dateKey)} className="rounded border-stone-warm/30" />
                         {formatDateForDropdown(dateKey)}
                       </label>
                     ))}
@@ -430,11 +430,11 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
           const dayItems = byDay.get(dayKey) ?? []
           return (
             <section key={dayKey}>
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-3">
+              <h2 className="font-sans text-xs font-semibold uppercase tracking-wider text-stone-warm mb-3">
                 {formatDayLabel(dayKey)}
               </h2>
               {dayItems.length === 0 ? (
-                <p className="text-sm text-zinc-500 dark:text-zinc-500">No classes found</p>
+                <p className="font-sans text-xs text-stone-warm">No classes found</p>
               ) : (
               <ul className="space-y-2">
                 {dayItems.map((item) => {
@@ -447,13 +447,13 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                   return (
                     <li
                       key={item.session.id}
-                      className="relative rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden"
+                      className="relative border border-stone-warm/20 bg-claret-deep shadow-sm overflow-hidden"
                     >
                       {/* Heart icon: top right (same position in both modes) */}
                       <button
                         type="button"
                         onClick={(e) => toggleSave(e, item.session.id, item)}
-                        className={`absolute top-1.5 right-2 p-1.5 rounded-md transition shrink-0 z-10 ${saved ? "text-red-500" : "text-zinc-400 hover:text-red-500"}`}
+                        className={`absolute top-1.5 right-2 p-1.5 rounded-md transition shrink-0 z-10 ${saved ? "text-red-400" : "text-stone-warm hover:text-red-400"}`}
                         aria-label={saved ? "Unsave" : "Save"}
                         title={saved ? "Unsave" : "Save"}
                       >
@@ -476,13 +476,13 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                               onClick={() => toggleExpanded(item.session.id, item)}
                               className="w-full text-left px-3 py-3 sm:px-3.5 sm:py-3.5 flex items-center gap-2 pr-12 min-w-0"
                             >
-                              <span className={`${cardText} text-zinc-500 dark:text-zinc-500 shrink-0`}>
+                              <span className={`font-sans ${cardText} text-stone-warm shrink-0`}>
                                 {formatStartTime(start)}
                               </span>
-                              <span className={`${cardText} font-semibold text-zinc-900 dark:text-zinc-100 truncate min-w-0`}>
+                              <span className={`${cardText} font-semibold text-cream truncate min-w-0`}>
                                 {item.template.title}
                                 {item.template.price > 0 && (
-                                  <span className="font-normal text-zinc-600 dark:text-zinc-400">
+                                  <span className="font-normal text-cream-soft">
                                     {" · "}
                                     ${item.template.price}
                                   </span>
@@ -496,13 +496,13 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                 onClick={() => toggleExpanded(item.session.id)}
                                 className="w-full text-left flex flex-col gap-0.5 pr-12"
                               >
-                                <p className={`${cardText} text-zinc-500 dark:text-zinc-500`}>
+                                <p className={`font-sans ${cardText} text-stone-warm`}>
                                   {formatTimeRange(start, end)}
                                 </p>
                                 <div className="min-w-0">
-                                  <h3 className={`${cardText} text-zinc-900 dark:text-zinc-100`}>
+                                  <h3 className={`${cardText} text-cream`}>
                                     <span className="font-semibold">{item.template.title}</span>
-                                    <span className="font-normal text-zinc-600 dark:text-zinc-400">
+                                    <span className="font-normal text-cream-soft">
                                       {" · "}
                                       {categoryLabel(item.template.category)}
                                       {item.template.price > 0 && ` · $${item.template.price}`}
@@ -517,14 +517,14 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                 role="button"
                                 tabIndex={0}
                               >
-                                <p className={`${cardText} text-zinc-500 dark:text-zinc-500`}>
+                                <p className={`font-sans ${cardText} text-stone-warm`}>
                                   {item.sourceSlug ? (
                                     <Link href={`/studios/${item.sourceSlug}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>{item.hostName}</Link>
                                   ) : item.hostName}
                                   {item.address ? ` · ${item.address}` : ""}
                                   {item.neighborhood ? ` · ${item.neighborhood}` : ""}
                                 </p>
-                                <p className={`${cardText} text-zinc-500 dark:text-zinc-500 mt-1`}>
+                                <p className={`font-sans ${cardText} text-stone-warm mt-1`}>
                                   {availabilityUnknown
                                     ? <span className="italic">Check page for availability</span>
                                     : item.session.capacity >= 0
@@ -536,13 +536,13 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                 <button
                                   type="button"
                                   onClick={() => toggleExpanded(item.session.id)}
-                                  className={`${cardText} font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition underline`}
+                                  className={`font-sans ${cardText} font-medium text-cream-soft hover:text-cream transition underline`}
                                 >
                                   See less
                                 </button>
                                 <div className="flex items-center gap-2 ml-auto">
                                   {isFull && (
-                                    <span className="rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400 text-xs font-medium px-2 py-0.5 shrink-0">
+                                    <span className="font-sans bg-stone-warm/20 text-cream-soft text-xs font-medium px-2 py-0.5 shrink-0">
                                       Class full
                                     </span>
                                   )}
@@ -552,7 +552,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       onClick={(e) => { e.stopPropagation(); posthog.capture("book_class_clicked", { session_id: item.session.id, class_title: item.template.title, category: item.template.category, price: item.template.price, neighborhood: item.neighborhood, host_name: item.hostName, is_full: isFull }) }}
-                                      className={`${cardText} font-medium rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
+                                      className={`font-sans ${cardText} font-medium rounded-full bg-cream text-claret px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
                                     >
                                       Book
                                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" aria-hidden>
@@ -563,7 +563,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                     <Link
                                       href={`/studios/${item.sourceSlug}`}
                                       onClick={(e) => e.stopPropagation()}
-                                      className={`${cardText} font-medium rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
+                                      className={`font-sans ${cardText} font-medium rounded-full bg-cream text-claret px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
                                     >
                                       Studio
                                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" aria-hidden>
@@ -583,13 +583,13 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                             onClick={() => toggleExpanded(item.session.id, item)}
                             className="w-full text-left px-3 pt-3 pb-0 sm:px-3.5 sm:pt-3.5 flex flex-col gap-0.5 pr-12"
                           >
-                            <p className={`${cardText} text-zinc-500 dark:text-zinc-500`}>
+                            <p className={`font-sans ${cardText} text-stone-warm`}>
                               {formatTimeRange(start, end)}
                             </p>
                             <div className="min-w-0">
-                              <h3 className={`${cardText} text-zinc-900 dark:text-zinc-100`}>
+                              <h3 className={`${cardText} text-cream`}>
                                 <span className="font-semibold">{item.template.title}</span>
-                                <span className="font-normal text-zinc-600 dark:text-zinc-400">
+                                <span className="font-normal text-cream-soft">
                                   {" · "}
                                   {categoryLabel(item.template.category)}
                                   {item.template.price > 0 && ` · $${item.template.price}`}
@@ -605,14 +605,14 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                               role="button"
                               tabIndex={0}
                             >
-                              <p className={`${cardText} text-zinc-500 dark:text-zinc-500`}>
+                              <p className={`font-sans ${cardText} text-stone-warm`}>
                                 {item.sourceSlug ? (
                                   <Link href={`/studios/${item.sourceSlug}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>{item.hostName}</Link>
                                 ) : item.hostName}
                                 {item.address ? ` · ${item.address}` : ""}
                                 {item.neighborhood ? ` · ${item.neighborhood}` : ""}
                               </p>
-                              <p className={`${cardText} text-zinc-500 dark:text-zinc-500 mt-1`}>
+                              <p className={`font-sans ${cardText} text-stone-warm mt-1`}>
                                 {availabilityUnknown
                                   ? <span className="italic">Check page for availability</span>
                                   : item.session.capacity >= 0
@@ -625,13 +625,13 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                             <button
                               type="button"
                               onClick={() => toggleExpanded(item.session.id)}
-                              className={`${cardText} font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition underline`}
+                              className={`font-sans ${cardText} font-medium text-cream-soft hover:text-cream transition underline`}
                             >
                               {expanded ? "See less" : "See more"}
                             </button>
                             <div className="flex items-center gap-2 ml-auto">
                               {isFull && (
-                                <span className="rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400 text-xs font-medium px-2 py-0.5 shrink-0">
+                                <span className="font-sans bg-stone-warm/20 text-cream-soft text-xs font-medium px-2 py-0.5 shrink-0">
                                   Class full
                                 </span>
                               )}
@@ -641,7 +641,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
-                                  className={`${cardText} font-medium rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
+                                  className={`font-sans ${cardText} font-medium rounded-full bg-cream text-claret px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
                                 >
                                   Book
                                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" aria-hidden>
@@ -652,7 +652,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                 <Link
                                   href={`/studios/${item.sourceSlug}`}
                                   onClick={(e) => e.stopPropagation()}
-                                  className={`${cardText} font-medium rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
+                                  className={`font-sans ${cardText} font-medium rounded-full bg-cream text-claret px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
                                 >
                                   Studio
                                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" aria-hidden>
@@ -675,21 +675,21 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
       </div>
 
       {filterActive.has("favorites") && (
-        <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
+        <div className="border-t border-stone-warm/20 pt-6">
           <button
             type="button"
             onClick={() => { const next = !pastEventsExpanded; setPastEventsExpanded(next); if (next) posthog.capture("past_events_expanded", { past_count: pastFavorites.length }) }}
             className="flex w-full items-center justify-between gap-2 text-left"
           >
-            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <span className="font-sans text-sm font-medium text-cream-soft">
               Past events{pastFavorites.length > 0 ? ` (${pastFavorites.length})` : ""}
             </span>
-            <span className={`text-zinc-400 dark:text-zinc-500 text-xs transition-transform ${pastEventsExpanded ? "rotate-180" : ""}`} aria-hidden>▼</span>
+            <span className={`font-sans text-stone-warm text-xs transition-transform ${pastEventsExpanded ? "rotate-180" : ""}`} aria-hidden>▼</span>
           </button>
           {pastEventsExpanded && (
             <div className="mt-4 space-y-6">
               {pastFavorites.length === 0 ? (
-                <p className="text-sm text-zinc-500 dark:text-zinc-500">
+                <p className="font-sans text-sm text-stone-warm">
                   No past events in your favorites.
                 </p>
               ) : (
@@ -698,7 +698,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                   const firstStart = new Date(dayItems[0].session.startTime)
                   return (
                     <section key={dayKey}>
-                      <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-3">
+                      <h2 className="font-sans text-xs font-semibold uppercase tracking-wider text-stone-warm mb-3">
                         {formatDay(firstStart)}
                       </h2>
                       <ul className="space-y-2">
@@ -708,15 +708,15 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                           return (
                             <li
                               key={item.session.id}
-                              className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm"
+                              className="border border-stone-warm/20 bg-claret-deep p-4 shadow-sm"
                             >
-                              <p className={`${cardText} text-zinc-500 dark:text-zinc-500`}>
+                              <p className={`font-sans ${cardText} text-stone-warm`}>
                                 {formatTimeRange(start, end)}
                               </p>
-                              <h3 className={`${cardText} font-semibold text-zinc-900 dark:text-zinc-100 mt-1`}>
+                              <h3 className={`${cardText} font-semibold text-cream mt-1`}>
                                 {item.template.title}
                               </h3>
-                              <p className={`${cardText} text-zinc-600 dark:text-zinc-400 mt-0.5`}>
+                              <p className={`${cardText} text-cream-soft mt-0.5`}>
                                 {item.sourceSlug ? (
                                   <Link href={`/studios/${item.sourceSlug}`} className="hover:underline">{item.hostName}</Link>
                                 ) : item.hostName}
@@ -724,11 +724,11 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                 {item.neighborhood ? ` · ${item.neighborhood}` : ""}
                               </p>
                               {item.classUrl ? (
-                                <a href={item.classUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:underline">
+                                <a href={item.classUrl} target="_blank" rel="noopener noreferrer" className="font-sans mt-2 inline-block text-sm font-medium text-cream-soft hover:underline">
                                   View class →
                                 </a>
                               ) : item.sourceSlug ? (
-                                <Link href={`/studios/${item.sourceSlug}`} className="mt-2 inline-block text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:underline">
+                                <Link href={`/studios/${item.sourceSlug}`} className="font-sans mt-2 inline-block text-sm font-medium text-cream-soft hover:underline">
                                   Studio page →
                                 </Link>
                               ) : null}
@@ -750,7 +750,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
           <button
             type="button"
             onClick={() => { posthog.capture("all_favorites_cleared", { cleared_count: savedIds.size }); setSavedIds(new Set()) }}
-            className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 underline"
+            className="font-sans text-sm font-medium text-cream-soft hover:text-cream underline"
           >
             Remove all
           </button>
@@ -758,7 +758,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
       )}
 
       {filtered.length === 0 && (
-        <p className="text-center text-zinc-500 dark:text-zinc-500 py-8">
+        <p className="font-sans text-center text-stone-warm py-8">
           {filterActive.has("favorites")
             ? "You haven't saved any classes. Tap the heart icon to add a class to your favorites list."
             : "No sessions match. Try changing filters."}
