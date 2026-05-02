@@ -85,22 +85,27 @@ function categoryLabel(cat: string): string {
 
 const cardText = "text-sm leading-snug"
 
-type FilterId = "afterWork" | "weekendMorning" | "under75" | "forTwo" | "twoHoursOrLess" | "favorites"
+type FilterId = "afterWork" | "weekendMorning" | "under75" | "twoHoursOrLess" | "favorites"
 
 const FILTERS: { id: FilterId; label: string }[] = [
   { id: "afterWork", label: "After work (6–9pm)" },
   { id: "weekendMorning", label: "Weekend morning" },
   { id: "under75", label: "Under $75" },
-  { id: "forTwo", label: "For 2 people" },
   { id: "twoHoursOrLess", label: "2 hours or less" },
   { id: "favorites", label: "My favorites" }
 ]
+
+function shortenAddress(address: string): string {
+  const parts = address.split(", ")
+  return parts.slice(0, 2).join(", ")
+}
 
 function applyFilters(
   items: ScheduleItem[],
   active: Set<FilterId>,
   selectedNeighborhoods: Set<string>,
   selectedDates: Set<string>,
+  selectedCategories: Set<string>,
   savedIds: Set<string>
 ): ScheduleItem[] {
   return items.filter((item) => {
@@ -113,7 +118,6 @@ function applyFilters(
     const isWeekendMorning = isWeekend && hour >= 8 && hour < 12
     const isAfterWork = hour >= 18 && hour < 21
     const under75 = item.template.price <= 75
-    const forTwo = item.session.spotsLeft >= 2
     const durationMin = Math.round((end.getTime() - start.getTime()) / (60 * 1000))
     const twoHoursOrLess = durationMin <= 120
 
@@ -122,9 +126,9 @@ function applyFilters(
     if (active.has("afterWork") && !isAfterWork) return false
     if (active.has("weekendMorning") && !isWeekendMorning) return false
     if (active.has("under75") && !under75) return false
-    if (active.has("forTwo") && !forTwo) return false
     if (active.has("twoHoursOrLess") && !twoHoursOrLess) return false
     if (selectedNeighborhoods.size > 0 && (!item.neighborhood || !selectedNeighborhoods.has(item.neighborhood))) return false
+    if (selectedCategories.size > 0 && !selectedCategories.has(item.template.category)) return false
     return true
   })
 }
@@ -144,8 +148,10 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
   const [filterActive, setFilterActive] = useState<Set<FilterId>>(new Set())
   const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<Set<string>>(new Set())
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set())
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
   const [neighborhoodDropdownOpen, setNeighborhoodDropdownOpen] = useState(false)
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false)
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
   const [minimalView, setMinimalView] = useState(false)
   const [pastEventsExpanded, setPastEventsExpanded] = useState(false)
   const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set())
@@ -165,9 +171,14 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
     [items]
   )
 
+  const availableCategories = useMemo(
+    () => [...new Set(items.map((i) => i.template.category).filter(Boolean))].sort(),
+    [items]
+  )
+
   const filtered = useMemo(
-    () => applyFilters(items, filterActive, selectedNeighborhoods, selectedDates, savedIds),
-    [items, filterActive, selectedNeighborhoods, selectedDates, savedIds]
+    () => applyFilters(items, filterActive, selectedNeighborhoods, selectedDates, selectedCategories, savedIds),
+    [items, filterActive, selectedNeighborhoods, selectedDates, selectedCategories, savedIds]
   )
   const fromToday = useMemo(() => {
     const startOfToday = getStartOfToday()
@@ -238,6 +249,15 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
     })
   }
 
+  const toggleCategory = (cat: string) => {
+    setSelectedCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(cat)) next.delete(cat)
+      else next.add(cat)
+      return next
+    })
+  }
+
   function formatDateForDropdown(dateKey: string): string {
     const d = new Date(dateKey)
     return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
@@ -299,30 +319,10 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Top row: Minimal view toggle, right-aligned */}
-      <div className="flex justify-end">
-        <label className="flex cursor-pointer items-center gap-2">
-          <span className="font-sans text-sm font-medium text-cream-soft">Minimize</span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={minimalView}
-            onClick={() => { const next = !minimalView; setMinimalView(next); posthog.capture("minimal_view_toggled", { enabled: next }) }}
-            className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-warm ${
-              minimalView ? "bg-cream" : "bg-stone-warm/20"
-            }`}
-          >
-            <span
-              className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-claret shadow ring-0 transition-transform mt-0.5 ml-0.5 ${
-                minimalView ? "translate-x-5" : "translate-x-0"
-              }`}
-            />
-          </button>
-        </label>
-      </div>
-
-      {/* Filter row: chips + Neighborhood + Date */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Filters */}
+      <div className="flex flex-col gap-2">
+        <p className="font-sans text-xs font-semibold uppercase tracking-wider text-cream-soft">Filters</p>
+        <div className="flex flex-wrap items-center gap-2">
         {FILTERS.map((f) => {
           const active = filterActive.has(f.id)
           return (
@@ -343,7 +343,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
         <div className="relative">
           <button
             type="button"
-            onClick={() => { setDateDropdownOpen(false); setNeighborhoodDropdownOpen((o) => !o) }}
+            onClick={() => { setDateDropdownOpen(false); setCategoryDropdownOpen(false); setNeighborhoodDropdownOpen((o) => !o) }}
             className={`font-sans rounded-full px-3 py-1.5 text-xs font-medium transition border ${
               selectedNeighborhoods.size > 0
                 ? "bg-cream text-claret border-transparent"
@@ -357,7 +357,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
               <div className="fixed inset-0 z-10" aria-hidden onClick={() => setNeighborhoodDropdownOpen(false)} />
               <div className="absolute left-0 top-full z-20 mt-1 min-w-[160px] rounded-lg border border-stone-warm/20 bg-claret-deep py-1 shadow-lg">
                 {neighborhoods.length === 0 ? (
-                  <p className="font-sans px-3 py-2 text-xs text-stone-warm">No neighborhoods</p>
+                  <p className="font-sans px-3 py-2 text-xs text-cream-soft">No neighborhoods</p>
                 ) : (
                   <>
                     {selectedNeighborhoods.size > 0 && (
@@ -384,7 +384,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
         <div className="relative">
           <button
             type="button"
-            onClick={() => { setNeighborhoodDropdownOpen(false); setDateDropdownOpen((o) => !o) }}
+            onClick={() => { setNeighborhoodDropdownOpen(false); setCategoryDropdownOpen(false); setDateDropdownOpen((o) => !o) }}
             className={`font-sans rounded-full px-3 py-1.5 text-xs font-medium transition border ${
               selectedDates.size > 0
                 ? "bg-cream text-claret border-transparent"
@@ -398,7 +398,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
               <div className="fixed inset-0 z-10" aria-hidden onClick={() => setDateDropdownOpen(false)} />
               <div className="absolute left-0 top-full z-20 mt-1 min-w-[200px] max-h-64 overflow-y-auto rounded-lg border border-stone-warm/20 bg-claret-deep py-1 shadow-lg">
                 {availableDates.length === 0 ? (
-                  <p className="font-sans px-3 py-2 text-xs text-stone-warm">No dates</p>
+                  <p className="font-sans px-3 py-2 text-xs text-cream-soft">No dates</p>
                 ) : (
                   <>
                     {selectedDates.size > 0 && (
@@ -422,6 +422,48 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
             </>
           )}
         </div>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => { setNeighborhoodDropdownOpen(false); setDateDropdownOpen(false); setCategoryDropdownOpen((o) => !o) }}
+            className={`font-sans rounded-full px-3 py-1.5 text-xs font-medium transition border ${
+              selectedCategories.size > 0
+                ? "bg-cream text-claret border-transparent"
+                : "bg-transparent border-stone-warm/30 text-cream-soft hover:border-stone-warm/40"
+            }`}
+          >
+            Category{selectedCategories.size > 0 ? ` (${selectedCategories.size})` : ""}
+          </button>
+          {categoryDropdownOpen && (
+            <>
+              <div className="fixed inset-0 z-10" aria-hidden onClick={() => setCategoryDropdownOpen(false)} />
+              <div className="absolute left-0 top-full z-20 mt-1 min-w-[160px] rounded-lg border border-stone-warm/20 bg-claret-deep py-1 shadow-lg">
+                {availableCategories.length === 0 ? (
+                  <p className="font-sans px-3 py-2 text-xs text-cream-soft">No categories</p>
+                ) : (
+                  <>
+                    {selectedCategories.size > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCategories(new Set())}
+                        className="font-sans w-full px-3 py-1.5 text-left text-xs font-medium text-cream-soft hover:bg-stone-warm/10"
+                      >
+                        Remove all
+                      </button>
+                    )}
+                    {availableCategories.map((cat) => (
+                      <label key={cat} className="font-sans flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs text-cream-soft hover:bg-stone-warm/10">
+                        <input type="checkbox" checked={selectedCategories.has(cat)} onChange={() => toggleCategory(cat)} className="rounded border-stone-warm/30" />
+                        {categoryLabel(cat)}
+                      </label>
+                    ))}
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+        </div>
       </div>
 
       {/* Card list, grouped by day (today onward; show "No classes found" for empty dates) */}
@@ -430,11 +472,11 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
           const dayItems = byDay.get(dayKey) ?? []
           return (
             <section key={dayKey}>
-              <h2 className="font-sans text-xs font-semibold uppercase tracking-wider text-stone-warm mb-3">
+              <h2 className="font-sans text-xs font-semibold uppercase tracking-wider text-cream-soft mb-3">
                 {formatDayLabel(dayKey)}
               </h2>
               {dayItems.length === 0 ? (
-                <p className="font-sans text-xs text-stone-warm">No classes found</p>
+                <p className="font-sans text-xs text-cream-soft">No classes found</p>
               ) : (
               <ul className="space-y-2">
                 {dayItems.map((item) => {
@@ -453,7 +495,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                       <button
                         type="button"
                         onClick={(e) => toggleSave(e, item.session.id, item)}
-                        className={`absolute top-1.5 right-2 p-1.5 rounded-md transition shrink-0 z-10 ${saved ? "text-red-400" : "text-stone-warm hover:text-red-400"}`}
+                        className={`absolute top-1.5 right-2 p-1.5 rounded-md transition shrink-0 z-10 ${saved ? "text-red-400" : "text-cream-soft hover:text-red-400"}`}
                         aria-label={saved ? "Unsave" : "Save"}
                         title={saved ? "Unsave" : "Save"}
                       >
@@ -476,15 +518,15 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                               onClick={() => toggleExpanded(item.session.id, item)}
                               className="w-full text-left px-3 py-3 sm:px-3.5 sm:py-3.5 flex items-center gap-2 pr-12 min-w-0"
                             >
-                              <span className={`font-sans ${cardText} text-stone-warm shrink-0`}>
+                              <span className={`font-sans ${cardText} text-cream-soft shrink-0`}>
                                 {formatStartTime(start)}
                               </span>
-                              <span className={`${cardText} font-semibold text-cream truncate min-w-0`}>
+                              <span className="text-base font-semibold text-cream truncate min-w-0">
                                 {item.template.title}
+                                <span className="font-normal text-cream-soft"> · {item.hostName}</span>
                                 {item.template.price > 0 && (
-                                  <span className="font-normal text-cream-soft">
-                                    {" · "}
-                                    ${item.template.price}
+                                  <span className="font-sans text-xs font-normal text-cream-soft">
+                                    {" · "}${item.template.price}
                                   </span>
                                 )}
                               </span>
@@ -496,18 +538,17 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                 onClick={() => toggleExpanded(item.session.id)}
                                 className="w-full text-left flex flex-col gap-0.5 pr-12"
                               >
-                                <p className={`font-sans ${cardText} text-stone-warm`}>
+                                <p className={`font-sans ${cardText} text-cream-soft`}>
                                   {formatTimeRange(start, end)}
                                 </p>
                                 <div className="min-w-0">
-                                  <h3 className={`${cardText} text-cream`}>
-                                    <span className="font-semibold">{item.template.title}</span>
-                                    <span className="font-normal text-cream-soft">
-                                      {" · "}
-                                      {categoryLabel(item.template.category)}
-                                      {item.template.price > 0 && ` · $${item.template.price}`}
-                                    </span>
+                                  <h3 className="text-base font-semibold text-cream leading-snug">
+                                    {item.template.title}
+                                    <span className="font-normal text-cream-soft"> · {item.hostName}</span>
                                   </h3>
+                                  {item.template.price > 0 && (
+                                    <p className="font-sans text-xs text-cream-soft mt-0.5">${item.template.price}</p>
+                                  )}
                                 </div>
                               </button>
                               <div
@@ -517,28 +558,27 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                 role="button"
                                 tabIndex={0}
                               >
-                                <p className={`font-sans ${cardText} text-stone-warm`}>
-                                  {item.sourceSlug ? (
-                                    <Link href={`/studios/${item.sourceSlug}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>{item.hostName}</Link>
-                                  ) : item.hostName}
-                                  {item.address ? ` · ${item.address}` : ""}
-                                  {item.neighborhood ? ` · ${item.neighborhood}` : ""}
-                                </p>
-                                <p className={`font-sans ${cardText} text-stone-warm mt-1`}>
+                                {(item.neighborhood || item.address) && (
+                                  <p className={`italic ${cardText} text-cream-soft`}>
+                                    {[item.neighborhood, item.address ? shortenAddress(item.address) : null].filter(Boolean).join(" · ")}
+                                  </p>
+                                )}
+                                <p className={`italic ${cardText} text-cream-soft mt-0.5`}>
+                                  {categoryLabel(item.template.category)}
                                   {availabilityUnknown
-                                    ? <span className="italic">Check page for availability</span>
-                                    : item.session.capacity >= 0
-                                      ? `${item.session.spotsLeft} of ${item.session.capacity} spots left`
-                                      : `${item.session.spotsLeft} spots left`}
+                                    ? " · Check page for availability"
+                                    : (item.session.capacity >= 0
+                                        ? ` · ${item.session.spotsLeft} of ${item.session.capacity} spots left`
+                                        : ` · ${item.session.spotsLeft} spots left`)}
                                 </p>
                               </div>
                               <div className="flex items-center justify-between gap-2 pt-2">
                                 <button
                                   type="button"
                                   onClick={() => toggleExpanded(item.session.id)}
-                                  className={`font-sans ${cardText} font-medium text-cream-soft hover:text-cream transition underline`}
+                                  className="font-sans text-xs font-medium text-cream-soft hover:text-cream transition underline"
                                 >
-                                  See less
+                                  Hide details
                                 </button>
                                 <div className="flex items-center gap-2 ml-auto">
                                   {isFull && (
@@ -552,23 +592,17 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       onClick={(e) => { e.stopPropagation(); posthog.capture("book_class_clicked", { session_id: item.session.id, class_title: item.template.title, category: item.template.category, price: item.template.price, neighborhood: item.neighborhood, host_name: item.hostName, is_full: isFull }) }}
-                                      className={`font-sans ${cardText} font-medium rounded-full bg-cream text-claret px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
+                                      className={`font-sans ${cardText} font-medium text-cream-soft underline hover:text-cream transition`}
                                     >
                                       Book
-                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" aria-hidden>
-                                        <path fillRule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clipRule="evenodd" />
-                                      </svg>
                                     </a>
                                   ) : item.sourceSlug ? (
                                     <Link
                                       href={`/studios/${item.sourceSlug}`}
                                       onClick={(e) => e.stopPropagation()}
-                                      className={`font-sans ${cardText} font-medium rounded-full bg-cream text-claret px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
+                                      className={`font-sans ${cardText} font-medium text-cream-soft underline hover:text-cream transition`}
                                     >
                                       Studio
-                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" aria-hidden>
-                                        <path fillRule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clipRule="evenodd" />
-                                      </svg>
                                     </Link>
                                   ) : null}
                                 </div>
@@ -583,18 +617,17 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                             onClick={() => toggleExpanded(item.session.id, item)}
                             className="w-full text-left px-3 pt-3 pb-0 sm:px-3.5 sm:pt-3.5 flex flex-col gap-0.5 pr-12"
                           >
-                            <p className={`font-sans ${cardText} text-stone-warm`}>
+                            <p className={`font-sans ${cardText} text-cream-soft`}>
                               {formatTimeRange(start, end)}
                             </p>
                             <div className="min-w-0">
-                              <h3 className={`${cardText} text-cream`}>
-                                <span className="font-semibold">{item.template.title}</span>
-                                <span className="font-normal text-cream-soft">
-                                  {" · "}
-                                  {categoryLabel(item.template.category)}
-                                  {item.template.price > 0 && ` · $${item.template.price}`}
-                                </span>
+                              <h3 className="text-base font-semibold text-cream leading-snug">
+                                {item.template.title}
+                                <span className="font-normal text-cream-soft"> · {item.hostName}</span>
                               </h3>
+                              {item.template.price > 0 && (
+                                <p className="font-sans text-xs text-cream-soft mt-0.5">${item.template.price}</p>
+                              )}
                             </div>
                           </button>
                           {expanded && (
@@ -605,19 +638,18 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                               role="button"
                               tabIndex={0}
                             >
-                              <p className={`font-sans ${cardText} text-stone-warm`}>
-                                {item.sourceSlug ? (
-                                  <Link href={`/studios/${item.sourceSlug}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>{item.hostName}</Link>
-                                ) : item.hostName}
-                                {item.address ? ` · ${item.address}` : ""}
-                                {item.neighborhood ? ` · ${item.neighborhood}` : ""}
-                              </p>
-                              <p className={`font-sans ${cardText} text-stone-warm mt-1`}>
+                              {(item.neighborhood || item.address) && (
+                                <p className={`italic ${cardText} text-cream-soft`}>
+                                  {[item.neighborhood, item.address ? shortenAddress(item.address) : null].filter(Boolean).join(" · ")}
+                                </p>
+                              )}
+                              <p className={`italic ${cardText} text-cream-soft mt-0.5`}>
+                                {categoryLabel(item.template.category)}
                                 {availabilityUnknown
-                                  ? <span className="italic">Check page for availability</span>
-                                  : item.session.capacity >= 0
-                                    ? `${item.session.spotsLeft} of ${item.session.capacity} spots left`
-                                    : `${item.session.spotsLeft} spots left`}
+                                  ? " · Check page for availability"
+                                  : (item.session.capacity >= 0
+                                      ? ` · ${item.session.spotsLeft} of ${item.session.capacity} spots left`
+                                      : ` · ${item.session.spotsLeft} spots left`)}
                               </p>
                             </div>
                           )}
@@ -625,9 +657,9 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                             <button
                               type="button"
                               onClick={() => toggleExpanded(item.session.id)}
-                              className={`font-sans ${cardText} font-medium text-cream-soft hover:text-cream transition underline`}
+                              className="font-sans text-xs font-medium text-cream-soft hover:text-cream transition underline"
                             >
-                              {expanded ? "See less" : "See more"}
+                              {expanded ? "Hide details" : "Details"}
                             </button>
                             <div className="flex items-center gap-2 ml-auto">
                               {isFull && (
@@ -641,23 +673,17 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
-                                  className={`font-sans ${cardText} font-medium rounded-full bg-cream text-claret px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
+                                  className={`font-sans ${cardText} font-medium text-cream-soft underline hover:text-cream transition`}
                                 >
                                   Book
-                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" aria-hidden>
-                                    <path fillRule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clipRule="evenodd" />
-                                  </svg>
                                 </a>
                               ) : item.sourceSlug ? (
                                 <Link
                                   href={`/studios/${item.sourceSlug}`}
                                   onClick={(e) => e.stopPropagation()}
-                                  className={`font-sans ${cardText} font-medium rounded-full bg-cream text-claret px-4 py-2 hover:opacity-90 transition shrink-0 inline-flex items-center gap-1.5`}
+                                  className={`font-sans ${cardText} font-medium text-cream-soft underline hover:text-cream transition`}
                                 >
                                   Studio
-                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" aria-hidden>
-                                    <path fillRule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clipRule="evenodd" />
-                                  </svg>
                                 </Link>
                               ) : null}
                             </div>
@@ -684,12 +710,12 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
             <span className="font-sans text-sm font-medium text-cream-soft">
               Past events{pastFavorites.length > 0 ? ` (${pastFavorites.length})` : ""}
             </span>
-            <span className={`font-sans text-stone-warm text-xs transition-transform ${pastEventsExpanded ? "rotate-180" : ""}`} aria-hidden>▼</span>
+            <span className={`font-sans text-cream-soft text-xs transition-transform ${pastEventsExpanded ? "rotate-180" : ""}`} aria-hidden>▼</span>
           </button>
           {pastEventsExpanded && (
             <div className="mt-4 space-y-6">
               {pastFavorites.length === 0 ? (
-                <p className="font-sans text-sm text-stone-warm">
+                <p className="font-sans text-sm text-cream-soft">
                   No past events in your favorites.
                 </p>
               ) : (
@@ -698,7 +724,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                   const firstStart = new Date(dayItems[0].session.startTime)
                   return (
                     <section key={dayKey}>
-                      <h2 className="font-sans text-xs font-semibold uppercase tracking-wider text-stone-warm mb-3">
+                      <h2 className="font-sans text-xs font-semibold uppercase tracking-wider text-cream-soft mb-3">
                         {formatDay(firstStart)}
                       </h2>
                       <ul className="space-y-2">
@@ -710,26 +736,26 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                               key={item.session.id}
                               className="border border-stone-warm/20 bg-claret-deep p-4 shadow-sm"
                             >
-                              <p className={`font-sans ${cardText} text-stone-warm`}>
+                              <p className={`font-sans ${cardText} text-cream-soft`}>
                                 {formatTimeRange(start, end)}
                               </p>
-                              <h3 className={`${cardText} font-semibold text-cream mt-1`}>
+                              <h3 className="text-base font-semibold text-cream mt-1">
                                 {item.template.title}
                               </h3>
-                              <p className={`${cardText} text-cream-soft mt-0.5`}>
+                              <p className={`italic ${cardText} text-cream-soft mt-0.5`}>
                                 {item.sourceSlug ? (
                                   <Link href={`/studios/${item.sourceSlug}`} className="hover:underline">{item.hostName}</Link>
                                 ) : item.hostName}
-                                {item.address ? ` · ${item.address}` : ""}
+                                {item.address ? ` · ${shortenAddress(item.address)}` : ""}
                                 {item.neighborhood ? ` · ${item.neighborhood}` : ""}
                               </p>
                               {item.classUrl ? (
-                                <a href={item.classUrl} target="_blank" rel="noopener noreferrer" className="font-sans mt-2 inline-block text-sm font-medium text-cream-soft hover:underline">
-                                  View class →
+                                <a href={item.classUrl} target="_blank" rel="noopener noreferrer" className="font-sans mt-2 inline-block text-sm font-medium text-cream-soft underline hover:text-cream transition">
+                                  View class
                                 </a>
                               ) : item.sourceSlug ? (
-                                <Link href={`/studios/${item.sourceSlug}`} className="font-sans mt-2 inline-block text-sm font-medium text-cream-soft hover:underline">
-                                  Studio page →
+                                <Link href={`/studios/${item.sourceSlug}`} className="font-sans mt-2 inline-block text-sm font-medium text-cream-soft underline hover:text-cream transition">
+                                  Studio page
                                 </Link>
                               ) : null}
                             </li>
@@ -758,7 +784,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
       )}
 
       {filtered.length === 0 && (
-        <p className="font-sans text-center text-stone-warm py-8">
+        <p className="italic text-center text-cream-soft py-8">
           {filterActive.has("favorites")
             ? "You haven't saved any classes. Tap the heart icon to add a class to your favorites list."
             : "No sessions match. Try changing filters."}
