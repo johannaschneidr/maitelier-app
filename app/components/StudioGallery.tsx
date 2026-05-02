@@ -11,7 +11,7 @@ export function StudioGallery({ photoUrls, name }: Props) {
   return (
     <div className="grid grid-cols-2 gap-2">
       {photoUrls.map((url, i) => (
-        <div key={i} className="aspect-square overflow-hidden bg-zinc-100 dark:bg-zinc-800">
+        <div key={i} className="aspect-square overflow-hidden bg-claret-deep">
           <img
             src={url}
             alt={`${name}, photo ${i + 1}`}

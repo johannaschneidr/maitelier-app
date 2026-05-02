@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const source = await getSourceBySlug(slug)
   if (!source) return {}
 
-  const title = `${source.name} Classes & Workshops in NYC | CraftPass`
+  const title = `${source.name} Classes & Workshops in NYC | maitelier.`
   const description =
     source.description ??
     `Browse and book hands-on classes at ${source.name}${source.neighborhood ? ` in ${source.neighborhood}` : ""}, NYC.`
@@ -59,7 +59,6 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
     ? `https://maps.google.com/?q=${encodeURIComponent(source.address)}`
     : null
 
-  // Serialize to plain objects for the client component — no Date objects
   const scheduleRows: ScheduleRow[] = pairs.map(({ session, template }) => ({
     id: session.id,
     dateTimeLabel: formatDateTime(session.startTime, session.endTime),
@@ -96,7 +95,7 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
   const galleryPhotos = source.photoUrls ?? (source.photoUrl ? [source.photoUrl] : [])
 
   return (
-    <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+    <main className="min-h-screen bg-claret">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -106,7 +105,7 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
         {/* Hero: image left, info right */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-12">
           {/* Square hero image */}
-          <div className="aspect-square overflow-hidden bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+          <div className="aspect-square overflow-hidden bg-claret-deep flex items-center justify-center">
             <StudioImage
               slug={source.slug!}
               name={source.name}
@@ -118,21 +117,21 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
 
           {/* Info */}
           <div className="flex flex-col justify-center">
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 leading-tight">
+            <h1 className="font-display italic text-2xl font-normal text-cream leading-tight">
               {source.name}
             </h1>
 
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 font-sans text-xs text-cream-soft">
               {source.neighborhood && <span>{source.neighborhood}</span>}
               {source.neighborhood && source.address && (
-                <span className="text-zinc-300 dark:text-zinc-700 select-none">&middot;</span>
+                <span className="text-cream-soft/40 select-none">&middot;</span>
               )}
               {source.address && mapsUrl && (
                 <a
                   href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-zinc-800 dark:hover:text-zinc-200 hover:underline transition"
+                  className="hover:text-cream hover:underline transition"
                 >
                   {source.address}
                 </a>
@@ -141,7 +140,7 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
             </div>
 
             {source.description && (
-              <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              <p className="mt-4 italic text-sm text-cream-soft leading-relaxed">
                 {source.description}
               </p>
             )}
@@ -152,7 +151,7 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
                   href={externalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 underline"
+                  className="font-sans text-xs font-medium text-cream-soft hover:text-cream underline"
                 >
                   {source.bookingUrl ? "Book classes" : "Website"}
                 </a>
@@ -162,7 +161,7 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
                   href={source.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 underline"
+                  className="font-sans text-xs font-medium text-cream-soft hover:text-cream underline"
                 >
                   Website
                 </a>
@@ -172,9 +171,17 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
                   href={`https://instagram.com/${source.instagramHandle}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 underline"
+                  className="font-sans text-xs font-medium text-cream-soft hover:text-cream underline"
                 >
                   @{source.instagramHandle}
+                </a>
+              )}
+              {source.phone && (
+                <a
+                  href={`tel:${source.phone}`}
+                  className="font-sans text-xs text-cream-soft"
+                >
+                  {source.phone}
                 </a>
               )}
             </div>
@@ -182,7 +189,7 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
         </div>
 
         {/* Upcoming classes */}
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-4">
+        <h2 className="font-sans text-xs font-semibold uppercase tracking-wider text-cream-soft mb-4">
           Upcoming classes
         </h2>
         <ScheduleList rows={scheduleRows} fallbackUrl={externalUrl} />
@@ -190,7 +197,7 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
         {/* Photo gallery */}
         {galleryPhotos.length > 0 && (
           <div className="mt-12">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-4">
+            <h2 className="font-sans text-xs font-semibold uppercase tracking-wider text-cream-soft mb-4">
               Photos
             </h2>
             <StudioGallery photoUrls={galleryPhotos} name={source.name} />

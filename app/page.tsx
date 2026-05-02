@@ -53,16 +53,16 @@ export default async function Home() {
   const pastItems = buildItems(pastSessions, templateById, sourceById)
 
   return (
-    <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6 md:p-10">
+    <main className="min-h-screen bg-claret p-6 md:p-10">
       <div className="mx-auto max-w-6xl">
         <header className="mb-8">
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+          <h1 className="font-display text-2xl font-normal text-cream leading-snug">
             Find creative classes in New York City that fit your schedule.
           </h1>
         </header>
 
         {items.length === 0 ? (
-          <p className="text-zinc-500 dark:text-zinc-500">
+          <p className="text-stone-warm">
             No upcoming sessions. Check back later or run the dev seed.
           </p>
         ) : (
