@@ -56,13 +56,13 @@ export default async function Home() {
     <main className="min-h-screen bg-claret p-6 md:p-10">
       <div className="mx-auto max-w-6xl">
         <header className="mb-8">
-          <h1 className="font-display text-2xl font-normal text-cream leading-snug">
+          <h1 className="font-display italic text-2xl font-normal text-cream leading-snug">
             Find creative classes in New York City that fit your schedule.
           </h1>
         </header>
 
         {items.length === 0 ? (
-          <p className="text-stone-warm">
+          <p className="text-cream-soft">
             No upcoming sessions. Check back later or run the dev seed.
           </p>
         ) : (
