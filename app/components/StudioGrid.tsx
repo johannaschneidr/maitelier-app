@@ -6,11 +6,11 @@ import { StudioImage } from "@/app/components/StudioImage"
 
 type Studio = {
   id: string
-  slug: string | null
+  slug?: string
   name: string
-  neighborhood?: string | null
-  description?: string | null
-  photoUrl?: string | null
+  neighborhood?: string
+  description?: string
+  photoUrl?: string
 }
 
 export function StudioGrid({ studios }: { studios: Studio[] }) {
@@ -98,7 +98,7 @@ export function StudioGrid({ studios }: { studios: Studio[] }) {
               <StudioImage
                 slug={studio.slug!}
                 name={studio.name}
-                fallbackUrl={studio.photoUrl}
+                fallbackUrl={studio.photoUrl ?? undefined}
                 imgClassName="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                 placeholderClassName="flex items-center justify-center w-full h-full"
               />
