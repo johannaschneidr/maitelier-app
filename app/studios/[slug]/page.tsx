@@ -72,13 +72,21 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
     bookUrl: template.url ?? externalUrl,
   }))
 
-  const jsonLd = {
+  const addressParts = source.address?.split(",") ?? []
+
+  const localBusinessJsonLd = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
     name: source.name,
     ...(source.description && { description: source.description }),
     ...(source.address && {
-      address: { "@type": "PostalAddress", streetAddress: source.address },
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: addressParts[0]?.trim() ?? source.address,
+        addressLocality: addressParts[1]?.trim() ?? "New York",
+        addressRegion: "NY",
+        addressCountry: "US",
+      },
     }),
     ...(source.website && { url: source.website }),
     ...(source.phone && { telephone: source.phone }),
@@ -94,14 +102,60 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
     }),
   }
 
+  const eventJsonLd = pairs.map(({ session, template }) => {
+    const bookUrl = template.url ?? externalUrl
+    return {
+      "@context": "https://schema.org",
+      "@type": "Event",
+      name: template.title,
+      description: template.description || undefined,
+      startDate: session.startTime.toISOString(),
+      endDate: session.endTime.toISOString(),
+      eventStatus: "https://schema.org/EventScheduled",
+      eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+      location: {
+        "@type": "Place",
+        name: source.name,
+        address: {
+          "@type": "PostalAddress",
+          ...(addressParts[0] && { streetAddress: addressParts[0].trim() }),
+          addressLocality: addressParts[1]?.trim() ?? source.neighborhood ?? "New York",
+          addressRegion: "NY",
+          addressCountry: "US",
+        },
+      },
+      organizer: {
+        "@type": "Organization",
+        name: source.name,
+        ...(source.website && { url: source.website }),
+      },
+      ...(bookUrl && {
+        offers: {
+          "@type": "Offer",
+          ...(template.price > 0 && { price: template.price.toString(), priceCurrency: "USD" }),
+          availability: session.spotsLeft === 0
+            ? "https://schema.org/SoldOut"
+            : "https://schema.org/InStock",
+          url: bookUrl,
+        },
+      }),
+    }
+  })
+
   const galleryPhotos = source.photoUrls ?? (source.photoUrl ? [source.photoUrl] : [])
 
   return (
     <main className="min-h-screen bg-claret">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
       />
+      {eventJsonLd.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(eventJsonLd) }}
+        />
+      )}
 
       <div className="mx-auto max-w-6xl px-6 md:px-10 py-8">
         {/* Hero: image left, info right */}
