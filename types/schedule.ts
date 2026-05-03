@@ -27,4 +27,6 @@ export type ScheduleItem = {
   sourceSlug?: string
   /** Direct booking URL for this specific class */
   classUrl?: string
+  /** Studio booking/website URL — fallback when no per-class URL is available */
+  studioBookingUrl?: string
 }

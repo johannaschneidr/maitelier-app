@@ -523,7 +523,9 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                               </span>
                               <span className="text-base font-semibold text-cream truncate min-w-0">
                                 {item.template.title}
-                                <span className="font-normal text-cream-soft"> · {item.hostName}</span>
+                                <span className="font-normal text-cream-soft"> · {item.sourceSlug ? (
+                                    <Link href={`/studios/${item.sourceSlug}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{item.hostName}</Link>
+                                  ) : item.hostName}</span>
                                 {item.template.price > 0 && (
                                   <span className="font-sans text-xs font-normal text-cream-soft">
                                     {" · "}${item.template.price}
@@ -544,7 +546,9 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                 <div className="min-w-0">
                                   <h3 className="text-base font-semibold text-cream leading-snug">
                                     {item.template.title}
-                                    <span className="font-normal text-cream-soft"> · {item.hostName}</span>
+                                    <span className="font-normal text-cream-soft"> · {item.sourceSlug ? (
+                                    <Link href={`/studios/${item.sourceSlug}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{item.hostName}</Link>
+                                  ) : item.hostName}</span>
                                   </h3>
                                   {item.template.price > 0 && (
                                     <p className="font-sans text-xs text-cream-soft mt-0.5">${item.template.price}</p>
@@ -586,24 +590,16 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                       Class full
                                     </span>
                                   )}
-                                  {item.classUrl ? (
+                                  {(item.classUrl ?? item.studioBookingUrl) ? (
                                     <a
-                                      href={item.classUrl}
+                                      href={(item.classUrl ?? item.studioBookingUrl)!}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      onClick={(e) => { e.stopPropagation(); posthog.capture("book_class_clicked", { session_id: item.session.id, class_title: item.template.title, category: item.template.category, price: item.template.price, neighborhood: item.neighborhood, host_name: item.hostName, is_full: isFull }) }}
+                                      onClick={(e) => { e.stopPropagation(); posthog.capture("book_class_clicked", { session_id: item.session.id, class_title: item.template.title, category: item.template.category, price: item.template.price, neighborhood: item.neighborhood, host_name: item.hostName, is_full: isFull, url_type: item.classUrl ? "class" : "studio" }) }}
                                       className={`font-sans ${cardText} font-medium text-cream-soft underline hover:text-cream transition`}
                                     >
                                       Book
                                     </a>
-                                  ) : item.sourceSlug ? (
-                                    <Link
-                                      href={`/studios/${item.sourceSlug}`}
-                                      onClick={(e) => e.stopPropagation()}
-                                      className={`font-sans ${cardText} font-medium text-cream-soft underline hover:text-cream transition`}
-                                    >
-                                      Studio
-                                    </Link>
                                   ) : null}
                                 </div>
                               </div>
@@ -623,7 +619,9 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                             <div className="min-w-0">
                               <h3 className="text-base font-semibold text-cream leading-snug">
                                 {item.template.title}
-                                <span className="font-normal text-cream-soft"> · {item.hostName}</span>
+                                <span className="font-normal text-cream-soft"> · {item.sourceSlug ? (
+                                    <Link href={`/studios/${item.sourceSlug}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{item.hostName}</Link>
+                                  ) : item.hostName}</span>
                               </h3>
                               {item.template.price > 0 && (
                                 <p className="font-sans text-xs text-cream-soft mt-0.5">${item.template.price}</p>
@@ -667,24 +665,16 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                   Class full
                                 </span>
                               )}
-                              {item.classUrl ? (
+                              {(item.classUrl ?? item.studioBookingUrl) ? (
                                 <a
-                                  href={item.classUrl}
+                                  href={(item.classUrl ?? item.studioBookingUrl)!}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e) => { e.stopPropagation(); posthog.capture("book_class_clicked", { session_id: item.session.id, class_title: item.template.title, category: item.template.category, price: item.template.price, neighborhood: item.neighborhood, host_name: item.hostName, is_full: isFull, url_type: item.classUrl ? "class" : "studio" }) }}
                                   className={`font-sans ${cardText} font-medium text-cream-soft underline hover:text-cream transition`}
                                 >
                                   Book
                                 </a>
-                              ) : item.sourceSlug ? (
-                                <Link
-                                  href={`/studios/${item.sourceSlug}`}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className={`font-sans ${cardText} font-medium text-cream-soft underline hover:text-cream transition`}
-                                >
-                                  Studio
-                                </Link>
                               ) : null}
                             </div>
                           </div>

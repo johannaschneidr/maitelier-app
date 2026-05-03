@@ -34,6 +34,8 @@ function buildItems(
       if (source?.address) item.address = source.address
       if (source?.slug) item.sourceSlug = source.slug
       if (template.url) item.classUrl = template.url
+      const externalUrl = source?.bookingUrl ?? source?.website
+      if (externalUrl) item.studioBookingUrl = externalUrl
       return item
     })
     .filter((x): x is ScheduleItem => x !== null)
