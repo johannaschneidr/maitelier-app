@@ -15,7 +15,7 @@ const BASE_URL = "https://www.craft-society.com"
 const EVENTS_URL = `${BASE_URL}/event-list`
 
 function inferCategory(title: string): string {
-  if (/(knit|yarn|fiber|weav|macram|embroider|textile|stitch)/i.test(title)) return "textile"
+  if (/(knit|yarn|fiber|weav|macram|embroider|textile|stitch)/i.test(title)) return "textiles"
   if (/(lino|block print|screen print|print)/i.test(title)) return "printmaking"
   if (/(ceramic|pottery|clay)/i.test(title)) return "ceramics"
   if (/(paint|watercolor)/i.test(title)) return "painting"

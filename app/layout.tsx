@@ -36,8 +36,7 @@ export default function RootLayout({
           <div className="mx-auto max-w-6xl px-6 md:px-10 h-14 flex items-center justify-between">
             <span className="italic text-xs text-cream-soft">© {new Date().getFullYear()} maitelier.</span>
             <div className="flex items-center gap-4">
-              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="font-sans text-xs text-cream-soft hover:text-cream transition">Instagram</a>
-              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="font-sans text-xs text-cream-soft hover:text-cream transition">Twitter</a>
+              <a href="https://instagram.com/find.maitelier" target="_blank" rel="noopener noreferrer" className="font-sans text-xs text-cream-soft hover:text-cream transition">@find.maitelier</a>
             </div>
           </div>
         </footer>

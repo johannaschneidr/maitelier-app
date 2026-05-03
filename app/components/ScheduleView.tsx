@@ -79,11 +79,22 @@ function formatTimeAndDuration(start: Date, end: Date, durationMin: number): str
   return `${formatTimeRange(start, end)} (${formatDuration(durationMin)})`
 }
 
-function categoryLabel(cat: string): string {
-  return cat.charAt(0).toUpperCase() + cat.slice(1)
+const CATEGORY_ALIASES: Record<string, string> = {
+  textile: "textiles",
+  wellness: "workshop",
+  cooking: "workshop",
 }
 
-const cardText = "text-sm leading-snug"
+function normalizeCategory(cat: string): string {
+  return CATEGORY_ALIASES[cat.toLowerCase()] ?? cat.toLowerCase()
+}
+
+function categoryLabel(cat: string): string {
+  const normalized = normalizeCategory(cat)
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+}
+
+const cardText = "text-xs leading-snug"
 
 type FilterId = "afterWork" | "weekendMorning" | "under75" | "twoHoursOrLess" | "favorites"
 
@@ -106,6 +117,7 @@ function applyFilters(
   selectedNeighborhoods: Set<string>,
   selectedDates: Set<string>,
   selectedCategories: Set<string>,
+  selectedStudios: Set<string>,
   savedIds: Set<string>
 ): ScheduleItem[] {
   return items.filter((item) => {
@@ -128,7 +140,8 @@ function applyFilters(
     if (active.has("under75") && !under75) return false
     if (active.has("twoHoursOrLess") && !twoHoursOrLess) return false
     if (selectedNeighborhoods.size > 0 && (!item.neighborhood || !selectedNeighborhoods.has(item.neighborhood))) return false
-    if (selectedCategories.size > 0 && !selectedCategories.has(item.template.category)) return false
+    if (selectedCategories.size > 0 && !selectedCategories.has(normalizeCategory(item.template.category))) return false
+    if (selectedStudios.size > 0 && !selectedStudios.has(item.hostName)) return false
     return true
   })
 }
@@ -149,13 +162,14 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
   const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<Set<string>>(new Set())
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set())
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
+  const [selectedStudios, setSelectedStudios] = useState<Set<string>>(new Set())
+  const [visibleCount, setVisibleCount] = useState(10)
   const [neighborhoodDropdownOpen, setNeighborhoodDropdownOpen] = useState(false)
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false)
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
-  const [minimalView, setMinimalView] = useState(false)
+  const [studioDropdownOpen, setStudioDropdownOpen] = useState(false)
   const [pastEventsExpanded, setPastEventsExpanded] = useState(false)
   const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set())
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     setSavedIds(loadSavedIds())
@@ -172,19 +186,27 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
   )
 
   const availableCategories = useMemo(
-    () => [...new Set(items.map((i) => i.template.category).filter(Boolean))].sort(),
+    () => [...new Set(items.map((i) => normalizeCategory(i.template.category)).filter(Boolean))].sort(),
+    [items]
+  )
+
+  const availableStudios = useMemo(
+    () => [...new Set(items.map((i) => i.hostName).filter(Boolean))].sort(),
     [items]
   )
 
   const filtered = useMemo(
-    () => applyFilters(items, filterActive, selectedNeighborhoods, selectedDates, selectedCategories, savedIds),
-    [items, filterActive, selectedNeighborhoods, selectedDates, selectedCategories, savedIds]
+    () => applyFilters(items, filterActive, selectedNeighborhoods, selectedDates, selectedCategories, selectedStudios, savedIds),
+    [items, filterActive, selectedNeighborhoods, selectedDates, selectedCategories, selectedStudios, savedIds]
   )
+  useEffect(() => { setVisibleCount(10) }, [filtered])
   const fromToday = useMemo(() => {
     const startOfToday = getStartOfToday()
     return filtered.filter((item) => new Date(item.session.startTime) >= startOfToday)
   }, [filtered])
-  const byDay = useMemo(() => groupByDay(fromToday), [fromToday])
+  const visibleItems = useMemo(() => fromToday.slice(0, visibleCount), [fromToday, visibleCount])
+  const hasMore = fromToday.length > visibleCount
+  const byDay = useMemo(() => groupByDay(visibleItems), [visibleItems])
   const sortedDays = useMemo(() => {
     const startOfToday = getStartOfToday()
 
@@ -258,6 +280,15 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
     })
   }
 
+  const toggleStudio = (studio: string) => {
+    setSelectedStudios((prev) => {
+      const next = new Set(prev)
+      if (next.has(studio)) next.delete(studio)
+      else next.add(studio)
+      return next
+    })
+  }
+
   function formatDateForDropdown(dateKey: string): string {
     const d = new Date(dateKey)
     return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
@@ -290,29 +321,6 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
         })
       }
       saveSavedIds(next)
-      return next
-    })
-  }
-
-  const toggleExpanded = (sessionId: string, item?: ScheduleItem) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev)
-      const expanding = !next.has(sessionId)
-      if (expanding) {
-        next.add(sessionId)
-        if (item) {
-          posthog.capture("class_details_expanded", {
-            session_id: sessionId,
-            class_title: item.template.title,
-            category: item.template.category,
-            price: item.template.price,
-            neighborhood: item.neighborhood,
-            host_name: item.hostName,
-          })
-        }
-      } else {
-        next.delete(sessionId)
-      }
       return next
     })
   }
@@ -371,7 +379,14 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                     )}
                     {neighborhoods.map((n) => (
                       <label key={n} className="font-sans flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs text-cream-soft hover:bg-stone-warm/10">
-                        <input type="checkbox" checked={selectedNeighborhoods.has(n)} onChange={() => toggleNeighborhood(n)} className="rounded border-stone-warm/30" />
+                        <input type="checkbox" checked={selectedNeighborhoods.has(n)} onChange={() => toggleNeighborhood(n)} className="sr-only" />
+                        <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border transition-colors ${selectedNeighborhoods.has(n) ? "bg-cream border-cream" : "border-stone-warm/40"}`}>
+                          {selectedNeighborhoods.has(n) && (
+                            <svg className="h-2 w-2 text-claret" fill="none" viewBox="0 0 10 10" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M1.5 5l2.5 2.5 4.5-4.5" />
+                            </svg>
+                          )}
+                        </span>
                         {n}
                       </label>
                     ))}
@@ -412,7 +427,14 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                     )}
                     {availableDates.map((dateKey) => (
                       <label key={dateKey} className="font-sans flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs text-cream-soft hover:bg-stone-warm/10">
-                        <input type="checkbox" checked={selectedDates.has(dateKey)} onChange={() => toggleDate(dateKey)} className="rounded border-stone-warm/30" />
+                        <input type="checkbox" checked={selectedDates.has(dateKey)} onChange={() => toggleDate(dateKey)} className="sr-only" />
+                        <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border transition-colors ${selectedDates.has(dateKey) ? "bg-cream border-cream" : "border-stone-warm/40"}`}>
+                          {selectedDates.has(dateKey) && (
+                            <svg className="h-2 w-2 text-claret" fill="none" viewBox="0 0 10 10" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M1.5 5l2.5 2.5 4.5-4.5" />
+                            </svg>
+                          )}
+                        </span>
                         {formatDateForDropdown(dateKey)}
                       </label>
                     ))}
@@ -425,7 +447,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
         <div className="relative">
           <button
             type="button"
-            onClick={() => { setNeighborhoodDropdownOpen(false); setDateDropdownOpen(false); setCategoryDropdownOpen((o) => !o) }}
+            onClick={() => { setNeighborhoodDropdownOpen(false); setDateDropdownOpen(false); setStudioDropdownOpen(false); setCategoryDropdownOpen((o) => !o) }}
             className={`font-sans rounded-full px-3 py-1.5 text-xs font-medium transition border ${
               selectedCategories.size > 0
                 ? "bg-cream text-claret border-transparent"
@@ -453,8 +475,63 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                     )}
                     {availableCategories.map((cat) => (
                       <label key={cat} className="font-sans flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs text-cream-soft hover:bg-stone-warm/10">
-                        <input type="checkbox" checked={selectedCategories.has(cat)} onChange={() => toggleCategory(cat)} className="rounded border-stone-warm/30" />
+                        <input type="checkbox" checked={selectedCategories.has(cat)} onChange={() => toggleCategory(cat)} className="sr-only" />
+                        <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border transition-colors ${selectedCategories.has(cat) ? "bg-cream border-cream" : "border-stone-warm/40"}`}>
+                          {selectedCategories.has(cat) && (
+                            <svg className="h-2 w-2 text-claret" fill="none" viewBox="0 0 10 10" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M1.5 5l2.5 2.5 4.5-4.5" />
+                            </svg>
+                          )}
+                        </span>
                         {categoryLabel(cat)}
+                      </label>
+                    ))}
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => { setNeighborhoodDropdownOpen(false); setDateDropdownOpen(false); setCategoryDropdownOpen(false); setStudioDropdownOpen((o) => !o) }}
+            className={`font-sans rounded-full px-3 py-1.5 text-xs font-medium transition border ${
+              selectedStudios.size > 0
+                ? "bg-cream text-claret border-transparent"
+                : "bg-transparent border-stone-warm/30 text-cream-soft hover:border-stone-warm/40"
+            }`}
+          >
+            Studio{selectedStudios.size > 0 ? ` (${selectedStudios.size})` : ""}
+          </button>
+          {studioDropdownOpen && (
+            <>
+              <div className="fixed inset-0 z-10" aria-hidden onClick={() => setStudioDropdownOpen(false)} />
+              <div className="absolute left-0 top-full z-20 mt-1 min-w-[180px] max-h-64 overflow-y-auto rounded-lg border border-stone-warm/20 bg-claret-deep py-1 shadow-lg">
+                {availableStudios.length === 0 ? (
+                  <p className="font-sans px-3 py-2 text-xs text-cream-soft">No studios</p>
+                ) : (
+                  <>
+                    {selectedStudios.size > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStudios(new Set())}
+                        className="font-sans w-full px-3 py-1.5 text-left text-xs font-medium text-cream-soft hover:bg-stone-warm/10"
+                      >
+                        Remove all
+                      </button>
+                    )}
+                    {availableStudios.map((studio) => (
+                      <label key={studio} className="font-sans flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs text-cream-soft hover:bg-stone-warm/10">
+                        <input type="checkbox" checked={selectedStudios.has(studio)} onChange={() => toggleStudio(studio)} className="sr-only" />
+                        <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border transition-colors ${selectedStudios.has(studio) ? "bg-cream border-cream" : "border-stone-warm/40"}`}>
+                          {selectedStudios.has(studio) && (
+                            <svg className="h-2 w-2 text-claret" fill="none" viewBox="0 0 10 10" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M1.5 5l2.5 2.5 4.5-4.5" />
+                            </svg>
+                          )}
+                        </span>
+                        {studio}
                       </label>
                     ))}
                   </>
@@ -483,7 +560,6 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                   const start = new Date(item.session.startTime)
                   const end = new Date(item.session.endTime)
                   const saved = savedIds.has(item.session.id)
-                  const expanded = expandedIds.has(item.session.id)
                   const isFull = item.session.spotsLeft === 0
                   const availabilityUnknown = item.session.capacity < 0 || item.session.spotsLeft < 0
                   return (
@@ -491,11 +567,11 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                       key={item.session.id}
                       className="relative border border-stone-warm/20 bg-claret-deep shadow-sm overflow-hidden"
                     >
-                      {/* Heart icon: top right (same position in both modes) */}
+                      {/* Heart icon */}
                       <button
                         type="button"
                         onClick={(e) => toggleSave(e, item.session.id, item)}
-                        className={`absolute top-1.5 right-2 p-1.5 rounded-md transition shrink-0 z-10 ${saved ? "text-red-400" : "text-cream-soft hover:text-red-400"}`}
+                        className={`absolute top-2 right-2 p-1.5 rounded-md transition shrink-0 z-10 ${saved ? "text-red-400" : "text-cream-soft hover:text-red-400"}`}
                         aria-label={saved ? "Unsave" : "Save"}
                         title={saved ? "Unsave" : "Save"}
                       >
@@ -510,187 +586,55 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                         )}
                       </button>
 
-                      {minimalView ? (
-                        <>
-                          {!expanded ? (
-                            <button
-                              type="button"
-                              onClick={() => toggleExpanded(item.session.id, item)}
-                              className="w-full text-left px-3 py-3 sm:px-3.5 sm:py-3.5 flex items-center gap-2 pr-12 min-w-0"
-                            >
-                              <span className={`font-sans ${cardText} text-cream-soft shrink-0`}>
-                                {formatStartTime(start)}
+                      <div className="px-3.5 py-3">
+                        <div className="pr-10">
+                          <p className={`${cardText} text-cream-soft`}>
+                            <span className="font-sans font-medium">{formatTimeRange(start, end)}</span>
+                            <span className="font-sans font-light"> · {categoryLabel(item.template.category)}</span>
+                          </p>
+                          <h3 className="text-base font-semibold text-cream leading-snug mt-0.5">
+                            {item.template.title}
+                          </h3>
+                        </div>
+                        <div className="flex items-end justify-between gap-2 mt-0.5">
+                          <p className={`font-sans font-normal ${cardText} text-cream-soft`}>
+                            {item.template.price > 0 && (
+                              <span className="font-bold text-cream-soft">${item.template.price} · </span>
+                            )}
+                            {item.sourceSlug ? (
+                              <Link href={`/studios/${item.sourceSlug}`} className="italic font-light text-cream-soft/70 underline hover:opacity-70">{item.hostName}</Link>
+                            ) : <span className="italic font-light text-cream-soft/70">{item.hostName}</span>}
+                            {item.neighborhood && <span className="italic font-light text-cream-soft/70"> · {item.neighborhood}</span>}
+                          </p>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {isFull && (
+                              <span className="font-sans bg-stone-warm/20 text-cream-soft text-xs font-medium px-2 py-0.5">
+                                Class full
                               </span>
-                              <span className="text-base font-semibold text-cream truncate min-w-0">
-                                {item.template.title}
-                                <span className="font-normal text-cream-soft"> · {item.hostName}</span>
-                                {item.template.price > 0 && (
-                                  <span className="font-sans text-xs font-normal text-cream-soft">
-                                    {" · "}${item.template.price}
-                                  </span>
-                                )}
+                            )}
+                            {!availabilityUnknown && (
+                              <span className={`font-sans ${cardText} text-cream-soft`}>
+                                {item.session.capacity >= 0
+                                  ? `${item.session.spotsLeft} of ${item.session.capacity} spots`
+                                  : `${item.session.spotsLeft} spots left`}
                               </span>
-                            </button>
-                          ) : (
-                            <div className="px-3 pt-3 pb-2.5 sm:px-3.5 sm:pt-3.5 sm:pb-3">
-                              <button
-                                type="button"
-                                onClick={() => toggleExpanded(item.session.id)}
-                                className="w-full text-left flex flex-col gap-0.5 pr-12"
+                            )}
+                            {(item.classUrl ?? item.studioBookingUrl) && (
+                              <a
+                                href={(item.classUrl ?? item.studioBookingUrl)!}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => posthog.capture("book_class_clicked", { session_id: item.session.id, class_title: item.template.title, category: item.template.category, price: item.template.price, neighborhood: item.neighborhood, host_name: item.hostName, is_full: isFull, url_type: item.classUrl ? "class" : "studio" })}
+                                className={`font-sans ${cardText} font-medium text-cream-soft underline hover:text-cream transition`}
                               >
-                                <p className={`font-sans ${cardText} text-cream-soft`}>
-                                  {formatTimeRange(start, end)}
-                                </p>
-                                <div className="min-w-0">
-                                  <h3 className="text-base font-semibold text-cream leading-snug">
-                                    {item.template.title}
-                                    <span className="font-normal text-cream-soft"> · {item.hostName}</span>
-                                  </h3>
-                                  {item.template.price > 0 && (
-                                    <p className="font-sans text-xs text-cream-soft mt-0.5">${item.template.price}</p>
-                                  )}
-                                </div>
-                              </button>
-                              <div
-                                className="pt-1.5 cursor-pointer"
-                                onClick={() => toggleExpanded(item.session.id)}
-                                onKeyDown={(e) => e.key === "Enter" && toggleExpanded(item.session.id)}
-                                role="button"
-                                tabIndex={0}
-                              >
-                                {(item.neighborhood || item.address) && (
-                                  <p className={`italic ${cardText} text-cream-soft`}>
-                                    {[item.neighborhood, item.address ? shortenAddress(item.address) : null].filter(Boolean).join(" · ")}
-                                  </p>
-                                )}
-                                <p className={`italic ${cardText} text-cream-soft mt-0.5`}>
-                                  {categoryLabel(item.template.category)}
-                                  {availabilityUnknown
-                                    ? " · Check page for availability"
-                                    : (item.session.capacity >= 0
-                                        ? ` · ${item.session.spotsLeft} of ${item.session.capacity} spots left`
-                                        : ` · ${item.session.spotsLeft} spots left`)}
-                                </p>
-                              </div>
-                              <div className="flex items-center justify-between gap-2 pt-2">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleExpanded(item.session.id)}
-                                  className="font-sans text-xs font-medium text-cream-soft hover:text-cream transition underline"
-                                >
-                                  Hide details
-                                </button>
-                                <div className="flex items-center gap-2 ml-auto">
-                                  {isFull && (
-                                    <span className="font-sans bg-stone-warm/20 text-cream-soft text-xs font-medium px-2 py-0.5 shrink-0">
-                                      Class full
-                                    </span>
-                                  )}
-                                  {item.classUrl ? (
-                                    <a
-                                      href={item.classUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => { e.stopPropagation(); posthog.capture("book_class_clicked", { session_id: item.session.id, class_title: item.template.title, category: item.template.category, price: item.template.price, neighborhood: item.neighborhood, host_name: item.hostName, is_full: isFull }) }}
-                                      className={`font-sans ${cardText} font-medium text-cream-soft underline hover:text-cream transition`}
-                                    >
-                                      Book
-                                    </a>
-                                  ) : item.sourceSlug ? (
-                                    <Link
-                                      href={`/studios/${item.sourceSlug}`}
-                                      onClick={(e) => e.stopPropagation()}
-                                      className={`font-sans ${cardText} font-medium text-cream-soft underline hover:text-cream transition`}
-                                    >
-                                      Studio
-                                    </Link>
-                                  ) : null}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => toggleExpanded(item.session.id, item)}
-                            className="w-full text-left px-3 pt-3 pb-0 sm:px-3.5 sm:pt-3.5 flex flex-col gap-0.5 pr-12"
-                          >
-                            <p className={`font-sans ${cardText} text-cream-soft`}>
-                              {formatTimeRange(start, end)}
-                            </p>
-                            <div className="min-w-0">
-                              <h3 className="text-base font-semibold text-cream leading-snug">
-                                {item.template.title}
-                                <span className="font-normal text-cream-soft"> · {item.hostName}</span>
-                              </h3>
-                              {item.template.price > 0 && (
-                                <p className="font-sans text-xs text-cream-soft mt-0.5">${item.template.price}</p>
-                              )}
-                            </div>
-                          </button>
-                          {expanded && (
-                            <div
-                              className="px-3 pt-1.5 sm:px-3.5"
-                              onClick={() => toggleExpanded(item.session.id)}
-                              onKeyDown={(e) => e.key === "Enter" && toggleExpanded(item.session.id)}
-                              role="button"
-                              tabIndex={0}
-                            >
-                              {(item.neighborhood || item.address) && (
-                                <p className={`italic ${cardText} text-cream-soft`}>
-                                  {[item.neighborhood, item.address ? shortenAddress(item.address) : null].filter(Boolean).join(" · ")}
-                                </p>
-                              )}
-                              <p className={`italic ${cardText} text-cream-soft mt-0.5`}>
-                                {categoryLabel(item.template.category)}
-                                {availabilityUnknown
-                                  ? " · Check page for availability"
-                                  : (item.session.capacity >= 0
-                                      ? ` · ${item.session.spotsLeft} of ${item.session.capacity} spots left`
-                                      : ` · ${item.session.spotsLeft} spots left`)}
-                              </p>
-                            </div>
-                          )}
-                          <div className={`flex items-center justify-between gap-2 px-3 pb-2.5 sm:px-3.5 sm:pb-3 ${expanded ? "pt-2 sm:pt-2" : "pt-0"}`}>
-                            <button
-                              type="button"
-                              onClick={() => toggleExpanded(item.session.id)}
-                              className="font-sans text-xs font-medium text-cream-soft hover:text-cream transition underline"
-                            >
-                              {expanded ? "Hide details" : "Details"}
-                            </button>
-                            <div className="flex items-center gap-2 ml-auto">
-                              {isFull && (
-                                <span className="font-sans bg-stone-warm/20 text-cream-soft text-xs font-medium px-2 py-0.5 shrink-0">
-                                  Class full
-                                </span>
-                              )}
-                              {item.classUrl ? (
-                                <a
-                                  href={item.classUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className={`font-sans ${cardText} font-medium text-cream-soft underline hover:text-cream transition`}
-                                >
-                                  Book
-                                </a>
-                              ) : item.sourceSlug ? (
-                                <Link
-                                  href={`/studios/${item.sourceSlug}`}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className={`font-sans ${cardText} font-medium text-cream-soft underline hover:text-cream transition`}
-                                >
-                                  Studio
-                                </Link>
-                              ) : null}
-                            </div>
+                                Book
+                              </a>
+                            )}
                           </div>
-                        </>
-                      )}
+                        </div>
+                      </div>
                     </li>
+
                   )
                 })}
               </ul>
@@ -768,6 +712,18 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {hasMore && (
+        <div className="flex justify-center pt-4">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((c) => c + 10)}
+            className="font-sans text-xs font-normal text-cream-soft hover:text-cream underline"
+          >
+            Load more
+          </button>
         </div>
       )}
 
