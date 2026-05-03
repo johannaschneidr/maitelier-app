@@ -20,7 +20,7 @@ function inferCategory(title: string): string {
   if (/(draw|sketch|illustration|figure)/i.test(title)) return "drawing"
   if (/(ceramic|pottery|clay)/i.test(title)) return "ceramics"
   if (/(print|lino|screen print|block print)/i.test(title)) return "printmaking"
-  if (/(textile|weav|knit|yarn|fiber|macram|embroider)/i.test(title)) return "textile"
+  if (/(textile|weav|knit|yarn|fiber|macram|embroider)/i.test(title)) return "textiles"
   if (/(wood|carpent)/i.test(title)) return "woodworking"
   if (/(jewelry|metal|silver)/i.test(title)) return "jewelry"
   if (/(photograph|photo)/i.test(title)) return "photography"

@@ -51,16 +51,16 @@ export function ScheduleList({ rows, fallbackUrl }: Props) {
           return (
             <li
               key={row.id}
-              className="border border-stone-warm/20 bg-claret-deep px-3.5 py-3 shadow-sm flex items-center justify-between gap-4"
+              className="border border-stone-warm/20 bg-claret-deep px-3.5 py-3 shadow-sm flex items-end justify-between gap-4"
             >
               <div className="min-w-0">
                 <p className="font-sans text-xs text-cream-soft">{row.dateTimeLabel}</p>
                 <p className="text-base font-semibold text-cream leading-snug mt-0.5">{row.title}</p>
                 {row.price > 0 && (
-                  <p className="font-sans text-xs text-cream-soft mt-0.5">${row.price}</p>
+                  <p className="font-sans text-xs text-cream-soft/70 mt-0.5">${row.price}</p>
                 )}
                 {availabilityUnknown ? (
-                  <p className="font-sans text-xs text-cream-soft mt-0.5 italic">Check page for availability</p>
+                  <p className="font-sans text-xs text-cream-soft/70 mt-0.5 italic">Check studio site for price & availability</p>
                 ) : (
                   <p className="font-sans text-xs text-cream-soft mt-0.5">
                     {row.spotsLeft} of {row.capacity} spots left

@@ -82,7 +82,7 @@ function inferCategory(title: string): string {
   if (/(sumi-?e|ink paint|ink art|brush paint)/i.test(t)) return "painting"
   if (/(suminagashi|marbl)/i.test(t)) return "printmaking"
   if (/(calligraph)/i.test(t)) return "drawing"
-  if (/(chanoyu|tea ceremony|matcha|ocha)/i.test(t)) return "wellness"
+  if (/(chanoyu|tea ceremony|matcha|ocha)/i.test(t)) return "workshop"
   if (/(ikebana|flower arrang)/i.test(t)) return "floral"
   if (/(ceramic|pottery|clay)/i.test(t)) return "ceramics"
   if (/(origami)/i.test(t)) return "workshop"

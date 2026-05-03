@@ -8,7 +8,9 @@ import type { ClassSession, ClassTemplate } from "@/types/db"
 
 function formatDateTime(start: Date, end: Date): string {
   const date = start.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
-  const fmt = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+  const fmt = (d: Date) => d.getMinutes() === 0
+    ? d.toLocaleTimeString("en-US", { hour: "numeric" })
+    : d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
   return `${date} · ${fmt(start)} – ${fmt(end)}`
 }
 
@@ -117,7 +119,7 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
 
           {/* Info */}
           <div className="flex flex-col justify-center">
-            <h1 className="font-display italic text-2xl font-normal text-cream leading-tight">
+            <h1 className="font-display italic text-2xl font-bold text-cream leading-tight">
               {source.name}
             </h1>
 
@@ -131,21 +133,15 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
                   href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-cream hover:underline transition"
+                  className="underline hover:text-cream transition"
                 >
-                  {source.address}
+                  {source.address.split(",").slice(0, 2).join(",")}
                 </a>
               )}
-              {source.address && !mapsUrl && <span>{source.address}</span>}
+              {source.address && !mapsUrl && <span>{source.address.split(",").slice(0, 2).join(",")}</span>}
             </div>
 
-            {source.description && (
-              <p className="mt-4 italic text-sm text-cream-soft leading-relaxed">
-                {source.description}
-              </p>
-            )}
-
-            <div className="flex flex-wrap gap-3 mt-5">
+            <div className="flex flex-wrap gap-3 mt-2">
               {externalUrl && (
                 <a
                   href={externalUrl}
@@ -154,16 +150,6 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
                   className="font-sans text-xs font-medium text-cream-soft hover:text-cream underline"
                 >
                   {source.bookingUrl ? "Book classes" : "Website"}
-                </a>
-              )}
-              {source.website && source.bookingUrl && (
-                <a
-                  href={source.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-sans text-xs font-medium text-cream-soft hover:text-cream underline"
-                >
-                  Website
                 </a>
               )}
               {source.instagramHandle && (
@@ -176,15 +162,13 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
                   @{source.instagramHandle}
                 </a>
               )}
-              {source.phone && (
-                <a
-                  href={`tel:${source.phone}`}
-                  className="font-sans text-xs text-cream-soft"
-                >
-                  {source.phone}
-                </a>
-              )}
             </div>
+
+            {source.description && (
+              <p className="mt-4 italic text-sm text-cream-soft leading-relaxed">
+                {source.description}
+              </p>
+            )}
           </div>
         </div>
 
