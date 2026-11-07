@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { OUTBOUND_REL } from "@/lib/outbound"
 
 export type ScheduleRow = {
   id: string
@@ -32,7 +33,7 @@ export function ScheduleList({ rows, fallbackUrl }: Props) {
         {fallbackUrl && (
           <>
             {" "}Check{" "}
-            <a href={fallbackUrl} target="_blank" rel="noopener noreferrer" className="underline hover:opacity-70">
+            <a href={fallbackUrl} target="_blank" rel={OUTBOUND_REL} className="underline hover:opacity-70">
               their schedule
             </a>{" "}
             for availability.
@@ -77,7 +78,7 @@ export function ScheduleList({ rows, fallbackUrl }: Props) {
                   <a
                     href={row.bookUrl}
                     target="_blank"
-                    rel="noopener noreferrer"
+                    rel={OUTBOUND_REL}
                     className="font-sans text-xs font-medium text-cream underline hover:text-cream transition"
                   >
                     Book

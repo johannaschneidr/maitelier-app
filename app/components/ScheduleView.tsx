@@ -27,6 +27,7 @@ function saveSavedIds(ids: Set<string>): void {
 }
 import Link from "next/link"
 import type { ScheduleItem } from "@/types/schedule"
+import { outboundHref, OUTBOUND_REL } from "@/lib/outbound"
 
 function formatDay(d: Date): string {
   return d.toLocaleDateString("en-US", {
@@ -621,9 +622,9 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                             )}
                             {(item.classUrl ?? item.studioBookingUrl) && (
                               <a
-                                href={(item.classUrl ?? item.studioBookingUrl)!}
+                                href={item.sourceSlug ? outboundHref(item.sourceSlug, "home_card", item.classUrl ? item.template.id : undefined) : (item.classUrl ?? item.studioBookingUrl)!}
                                 target="_blank"
-                                rel="noopener noreferrer"
+                                rel={OUTBOUND_REL}
                                 onClick={(e) => posthog.capture("book_class_clicked", { session_id: item.session.id, class_title: item.template.title, category: item.template.category, price: item.template.price, neighborhood: item.neighborhood, host_name: item.hostName, is_full: isFull, url_type: item.classUrl ? "class" : "studio" })}
                                 className={`font-sans ${cardText} font-medium text-cream-soft underline hover:text-cream transition`}
                               >
@@ -694,7 +695,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
                                 {item.neighborhood ? ` · ${item.neighborhood}` : ""}
                               </p>
                               {item.classUrl ? (
-                                <a href={item.classUrl} target="_blank" rel="noopener noreferrer" className="font-sans mt-2 inline-block text-sm font-medium text-cream-soft underline hover:text-cream transition">
+                                <a href={item.sourceSlug ? outboundHref(item.sourceSlug, "past_favorite", item.template.id) : item.classUrl} target="_blank" rel={OUTBOUND_REL} className="font-sans mt-2 inline-block text-sm font-medium text-cream-soft underline hover:text-cream transition">
                                   View class
                                 </a>
                               ) : item.sourceSlug ? (
