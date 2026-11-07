@@ -10,6 +10,8 @@ export type OutboundSrc =
   | "detail_schedule"
   | "detail_schedule_empty"
   | "past_favorite"
+  | "class_page"
+  | "class_schedule"
   | "ig_bio"
   | "newsletter"
   | "email"

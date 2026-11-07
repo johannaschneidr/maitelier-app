@@ -1,202 +1,130 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { getSourceBySlug, getTemplatesBySourceId, getSessionsByTemplateIds } from "@/lib/queries"
+import { getCatalog, priceRange } from "@/lib/catalog"
+import { studioLead } from "@/lib/answers"
+import { breadcrumbs, postalAddress, sessionEvent, SITE_URL } from "@/lib/jsonld"
+import { formatPrice, formatSessionRow, joinList } from "@/lib/format"
+import { getCraft } from "@/lib/taxonomy/crafts"
+import { outboundHref, OUTBOUND_REL } from "@/lib/outbound"
 import { StudioImage } from "@/app/components/StudioImage"
 import { StudioGallery } from "@/app/components/StudioGallery"
 import { ScheduleList, type ScheduleRow } from "@/app/components/ScheduleList"
-import type { ClassSession, ClassTemplate } from "@/types/db"
-import { outboundHref, OUTBOUND_REL } from "@/lib/outbound"
+import { AnswerLead } from "@/app/components/AnswerLead"
+import { FactsBlock } from "@/app/components/FactsBlock"
+import { LastChecked } from "@/app/components/LastChecked"
+import { ClassList } from "@/app/components/ClassList"
+import { Breadcrumbs } from "@/app/components/Breadcrumbs"
+import { JsonLd } from "@/app/components/JsonLd"
 
-function formatDateTime(start: Date, end: Date): string {
-  const date = start.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
-  const fmt = (d: Date) => d.getMinutes() === 0
-    ? d.toLocaleTimeString("en-US", { hour: "numeric" })
-    : d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
-  return `${date} · ${fmt(start)} – ${fmt(end)}`
-}
+export const revalidate = 3600
 
-function categoryLabel(cat: string): string {
-  return cat.charAt(0).toUpperCase() + cat.slice(1)
-}
+/** Cap on Event markup per page so it stays light. */
+const EVENTS_IN_MARKUP = 20
 
-type SessionPair = { session: ClassSession; template: ClassTemplate }
+type Params = { params: Promise<{ slug: string }> }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params
-  const source = await getSourceBySlug(slug)
-  if (!source) return {}
-
-  const title = `${source.name} Classes & Workshops in NYC | maitelier.`
-  const description =
-    source.description ??
-    `Browse and book hands-on classes at ${source.name}${source.neighborhood ? ` in ${source.neighborhood}` : ""}, NYC.`
-
+  const view = (await getCatalog()).studioBySlug.get(slug)
+  if (!view) return {}
+  const { studio } = view
+  const lead = studioLead(view)
+  const title = `${studio.name} Classes & Workshops in ${studio.neighborhood ?? "NYC"} | maitelier.`
+  const description = `${lead.headline} ${lead.detail}`
   return {
     title,
     description,
+    alternates: { canonical: `${SITE_URL}/studios/${slug}` },
     openGraph: {
       title,
-      description,
-      ...(source.photoUrl && { images: [{ url: source.photoUrl }] }),
+      description: lead.headline,
+      ...(studio.photoUrl && { images: [{ url: studio.photoUrl }] }),
     },
   }
 }
 
-export default async function StudioPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function StudioPage({ params }: Params) {
   const { slug } = await params
-  const source = await getSourceBySlug(slug)
-  if (!source) notFound()
+  const view = (await getCatalog()).studioBySlug.get(slug)
+  if (!view) notFound()
 
-  const templates = await getTemplatesBySourceId(source.id)
-  const sessions = await getSessionsByTemplateIds(templates.map((t) => t.id))
+  const { studio, classes } = view
+  const lead = studioLead(view)
+  const externalUrl = studio.bookingUrl ?? studio.website
+  const mapsUrl = studio.address ? `https://maps.google.com/?q=${encodeURIComponent(studio.address)}` : null
+  const scheduled = classes.filter((c) => c.sessions.length > 0)
+  const range = priceRange(scheduled.length > 0 ? scheduled : classes)
 
-  const templateById = new Map(templates.map((t) => [t.id, t]))
-  const pairs: SessionPair[] = sessions
-    .map((s) => ({ session: s, template: templateById.get(s.templateId) }))
-    .filter((p): p is SessionPair => !!p.template)
-    .sort((a, b) => a.session.startTime.getTime() - b.session.startTime.getTime())
+  // Every upcoming session across the studio's classes, soonest first.
+  const sessions = classes
+    .flatMap((c) => c.sessions.map((s) => ({ c, s })))
+    .sort((a, b) => a.s.start.getTime() - b.s.start.getTime())
 
-  const externalUrl = source.bookingUrl ?? source.website
-
-  const mapsUrl = source.address
-    ? `https://maps.google.com/?q=${encodeURIComponent(source.address)}`
-    : null
-
-  const scheduleRows: ScheduleRow[] = pairs.map(({ session, template }) => ({
-    id: session.id,
-    dateTimeLabel: formatDateTime(session.startTime, session.endTime),
-    title: template.title,
-    category: categoryLabel(template.category),
-    price: template.price,
-    capacity: session.capacity,
-    spotsLeft: session.spotsLeft,
-    bookUrl: template.url || externalUrl ? outboundHref(slug, "detail_schedule", template.url ? template.id : undefined) : undefined,
+  const scheduleRows: ScheduleRow[] = sessions.map(({ c, s }) => ({
+    id: s.id,
+    dateTimeLabel: formatSessionRow(s.start, s.end),
+    title: c.title,
+    category: getCraft(c.craft)?.label ?? "",
+    price: c.price,
+    capacity: s.capacity,
+    spotsLeft: s.spotsLeft,
+    bookUrl: c.bookingUrl || externalUrl ? outboundHref(slug, "detail_schedule", c.bookingUrl ? s.templateId : undefined) : undefined,
   }))
 
-  const addressParts = source.address?.split(",") ?? []
+  const sameAs = [
+    studio.website,
+    studio.instagramHandle && `https://instagram.com/${studio.instagramHandle}`,
+    studio.placeId && `https://www.google.com/maps/place/?q=place_id:${studio.placeId}`,
+  ].filter(Boolean)
 
   const localBusinessJsonLd = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
-    name: source.name,
-    ...(source.description && { description: source.description }),
-    ...(source.address && {
-      address: {
-        "@type": "PostalAddress",
-        streetAddress: addressParts[0]?.trim() ?? source.address,
-        addressLocality: addressParts[1]?.trim() ?? "New York",
-        addressRegion: "NY",
-        addressCountry: "US",
-      },
+    name: studio.name,
+    ...(studio.description && { description: studio.description }),
+    ...(studio.address && { address: postalAddress(studio) }),
+    ...(studio.website && { url: studio.website }),
+    ...(studio.phone && { telephone: studio.phone }),
+    ...(studio.coordinates && {
+      geo: { "@type": "GeoCoordinates", latitude: studio.coordinates.lat, longitude: studio.coordinates.lng },
     }),
-    ...(source.website && { url: source.website }),
-    ...(source.phone && { telephone: source.phone }),
-    ...(source.coordinates && {
-      geo: {
-        "@type": "GeoCoordinates",
-        latitude: source.coordinates.lat,
-        longitude: source.coordinates.lng,
-      },
-    }),
-    ...(source.instagramHandle && {
-      sameAs: [`https://instagram.com/${source.instagramHandle}`],
-    }),
+    ...(sameAs.length > 0 && { sameAs }),
   }
 
-  const eventJsonLd = pairs.map(({ session, template }) => {
-    const bookUrl = template.url ?? externalUrl
-    return {
-      "@context": "https://schema.org",
-      "@type": "Event",
-      name: template.title,
-      description: template.description || undefined,
-      startDate: session.startTime.toISOString(),
-      endDate: session.endTime.toISOString(),
-      eventStatus: "https://schema.org/EventScheduled",
-      eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
-      location: {
-        "@type": "Place",
-        name: source.name,
-        address: {
-          "@type": "PostalAddress",
-          ...(addressParts[0] && { streetAddress: addressParts[0].trim() }),
-          addressLocality: addressParts[1]?.trim() ?? source.neighborhood ?? "New York",
-          addressRegion: "NY",
-          addressCountry: "US",
-        },
-      },
-      organizer: {
-        "@type": "Organization",
-        name: source.name,
-        ...(source.website && { url: source.website }),
-      },
-      ...(bookUrl && {
-        offers: {
-          "@type": "Offer",
-          ...(template.price > 0 && { price: template.price.toString(), priceCurrency: "USD" }),
-          availability: session.spotsLeft === 0
-            ? "https://schema.org/SoldOut"
-            : "https://schema.org/InStock",
-          url: bookUrl,
-        },
-      }),
-    }
-  })
+  const crumbs = [
+    { name: "Studios", path: "/studios" },
+    { name: studio.name, path: `/studios/${slug}` },
+  ]
 
-  const galleryPhotos = source.photoUrls ?? (source.photoUrl ? [source.photoUrl] : [])
+  const galleryPhotos = studio.photoUrls ?? (studio.photoUrl ? [studio.photoUrl] : [])
 
   return (
     <main className="min-h-screen bg-claret">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
-      />
-      {eventJsonLd.length > 0 && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(eventJsonLd) }}
-        />
-      )}
+      <JsonLd data={localBusinessJsonLd} />
+      <JsonLd data={breadcrumbs(crumbs)} />
+      {sessions.length > 0 && <JsonLd data={sessions.slice(0, EVENTS_IN_MARKUP).map(({ c, s }) => sessionEvent(c, s))} />}
 
       <div className="mx-auto max-w-6xl px-6 md:px-10 py-8">
-        {/* Hero: image left, info right */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-12">
-          {/* Square hero image */}
+        <Breadcrumbs items={crumbs} />
+
+        {/* Hero: image left, answer right */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
           <div className="aspect-square overflow-hidden bg-claret-deep flex items-center justify-center">
             <StudioImage
-              slug={source.slug!}
-              name={source.name}
-              fallbackUrl={source.photoUrls?.[0] ?? source.photoUrl}
+              slug={slug}
+              name={studio.name}
+              fallbackUrl={studio.photoUrls?.[0] ?? studio.photoUrl}
               imgClassName="w-full h-full object-cover"
               placeholderClassName="flex items-center justify-center w-full h-full"
             />
           </div>
 
-          {/* Info */}
           <div className="flex flex-col justify-center">
-            <h1 className="font-display italic text-2xl font-bold text-cream leading-tight">
-              {source.name}
-            </h1>
+            <h1 className="font-display italic text-2xl font-bold text-cream leading-tight">{studio.name}</h1>
 
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 font-sans text-xs text-cream-soft">
-              {source.neighborhood && <span>{source.neighborhood}</span>}
-              {source.neighborhood && source.address && (
-                <span className="text-cream-soft/40 select-none">&middot;</span>
-              )}
-              {source.address && mapsUrl && (
-                <a
-                  href={mapsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-cream transition"
-                >
-                  {source.address.split(",").slice(0, 2).join(",")}
-                </a>
-              )}
-              {source.address && !mapsUrl && <span>{source.address.split(",").slice(0, 2).join(",")}</span>}
-            </div>
+            <AnswerLead lead={lead} />
 
-            <div className="flex flex-wrap gap-3 mt-2">
+            <div className="flex flex-wrap gap-3 mt-4">
               {externalUrl && (
                 <a
                   href={outboundHref(slug, "detail_page")}
@@ -204,43 +132,70 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
                   rel={OUTBOUND_REL}
                   className="font-sans text-xs font-medium text-cream-soft hover:text-cream underline"
                 >
-                  {source.bookingUrl ? "Book classes" : "Website"}
+                  {studio.bookingUrl ? "Book classes" : "Website"}
                 </a>
               )}
-              {source.instagramHandle && (
+              {studio.instagramHandle && (
                 <a
-                  href={`https://instagram.com/${source.instagramHandle}`}
+                  href={`https://instagram.com/${studio.instagramHandle}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-sans text-xs font-medium text-cream-soft hover:text-cream underline"
                 >
-                  @{source.instagramHandle}
+                  @{studio.instagramHandle}
                 </a>
               )}
             </div>
-
-            {source.description && (
-              <p className="mt-4 italic text-sm text-cream-soft leading-relaxed">
-                {source.description}
-              </p>
-            )}
           </div>
         </div>
 
-        {/* Upcoming classes */}
-        <h2 className="font-sans text-xs font-semibold uppercase tracking-wider text-cream-soft mb-4">
-          Upcoming classes
-        </h2>
-        <ScheduleList rows={scheduleRows} fallbackUrl={externalUrl ? outboundHref(slug, "detail_schedule_empty") : undefined} />
+        <FactsBlock
+          facts={[
+            {
+              label: "Crafts",
+              value: joinList(view.crafts.map((c) => getCraft(c)!.label)),
+            },
+            { label: "Neighborhood", value: studio.neighborhood ?? "" },
+            {
+              label: "Address",
+              value: studio.address?.split(",").slice(0, 2).join(",") ?? "",
+              href: mapsUrl ?? undefined,
+              external: true,
+            },
+            {
+              label: "Price range",
+              value: range ? (range.min === range.max ? formatPrice(range.min) : `${formatPrice(range.min)}–${formatPrice(range.max)}`) : "",
+            },
+            { label: "Classes scheduled", value: scheduled.length > 0 ? String(scheduled.length) : "" },
+            { label: "Booking", value: studio.bookingPlatform ? `Through ${studio.bookingPlatform}` : "" },
+          ]}
+        />
 
-        {/* Photo gallery */}
+        {classes.length > 0 && (
+          <section className="mt-12">
+            <h2 className="font-sans mb-4 text-xs font-semibold uppercase tracking-wider text-cream-soft">Classes</h2>
+            <ClassList classes={classes} />
+          </section>
+        )}
+
+        <section className="mt-12">
+          <h2 className="font-sans mb-4 text-xs font-semibold uppercase tracking-wider text-cream-soft">Upcoming sessions</h2>
+          <ScheduleList rows={scheduleRows} fallbackUrl={externalUrl ? outboundHref(slug, "detail_schedule_empty") : undefined} />
+          <LastChecked at={view.lastCheckedAt} />
+        </section>
+
+        {studio.description && (
+          <section className="mt-12">
+            <h2 className="font-sans mb-3 text-xs font-semibold uppercase tracking-wider text-cream-soft">About {studio.name}</h2>
+            <p className="text-sm text-cream-soft leading-relaxed max-w-2xl">{studio.description}</p>
+          </section>
+        )}
+
         {galleryPhotos.length > 0 && (
-          <div className="mt-12">
-            <h2 className="font-sans text-xs font-semibold uppercase tracking-wider text-cream-soft mb-4">
-              Photos
-            </h2>
-            <StudioGallery photoUrls={galleryPhotos} name={source.name} />
-          </div>
+          <section className="mt-12">
+            <h2 className="font-sans mb-4 text-xs font-semibold uppercase tracking-wider text-cream-soft">Photos</h2>
+            <StudioGallery photoUrls={galleryPhotos} name={studio.name} />
+          </section>
         )}
       </div>
     </main>
