@@ -105,10 +105,13 @@ function parseTitleDate(title: string): ParsedDateTime | null {
 
   if (day === null || month === null) return null
 
-  // Infer year: if no explicit year and the date is in the past, try next year
+  // Infer year when the title has none. A date well in the past ("Jan 10" seen in December)
+  // means next year. A date only recently past is a leftover listing for a class that already
+  // happened: keep this year so it gets filtered out as past, instead of reappearing a year later.
   if (!hasExplicitYear) {
     const candidate = new Date(year, month, day)
-    if (candidate < now) year += 1
+    const RECENTLY_PAST_MS = 90 * 24 * 60 * 60 * 1000
+    if (now.getTime() - candidate.getTime() > RECENTLY_PAST_MS) year += 1
   }
 
   // Default start time: 10am

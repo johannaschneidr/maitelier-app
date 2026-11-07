@@ -23,6 +23,22 @@ const EVENTS_IN_MARKUP = 20
 
 type Params = { params: Promise<{ slug: string }> }
 
+/** Third-party booking systems a visitor would recognize; everything else books on the studio's own site. */
+const BOOKING_PLATFORM_LABEL: Record<string, string> = {
+  fareharbor: "FareHarbor",
+  acuity: "Acuity",
+  eventbrite: "Eventbrite",
+  meetup: "Meetup",
+  luma: "Luma",
+  square: "Square",
+}
+
+function bookingLabel(platform: string | undefined): string {
+  if (!platform) return ""
+  const name = BOOKING_PLATFORM_LABEL[platform.toLowerCase()]
+  return name ? `Through ${name}` : "On the studio's website"
+}
+
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params
   const view = (await getCatalog()).studioBySlug.get(slug)
@@ -167,7 +183,7 @@ export default async function StudioPage({ params }: Params) {
               value: range ? (range.min === range.max ? formatPrice(range.min) : `${formatPrice(range.min)}–${formatPrice(range.max)}`) : "",
             },
             { label: "Classes scheduled", value: scheduled.length > 0 ? String(scheduled.length) : "" },
-            { label: "Booking", value: studio.bookingPlatform ? `Through ${studio.bookingPlatform}` : "" },
+            { label: "Booking", value: bookingLabel(studio.bookingPlatform) },
           ]}
         />
 
