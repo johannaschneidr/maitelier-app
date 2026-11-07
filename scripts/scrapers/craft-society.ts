@@ -6,6 +6,7 @@
  * Detail page: /event-details/{slug} — full date/time, price, description.
  */
 
+import "../nyc-timezone" // must be first: scrapers build Dates in New York time
 import type { ScrapedClass } from "../../types/scraped"
 import { withBrowser, delay } from "./playwright-utils"
 import { parsePrice } from "./utils"

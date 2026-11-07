@@ -41,6 +41,7 @@ const CATEGORY_TO_CRAFT: Record<string, CraftSlug> = {
   textile: "textiles",
   glass: "glass",
   glassblowing: "glass",
+  "glass art": "glass",
   jewelry: "jewelry-metal",
   metalsmithing: "jewelry-metal",
   painting: "painting-drawing",

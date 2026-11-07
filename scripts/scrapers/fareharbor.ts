@@ -9,6 +9,7 @@
  * Only single-day sessions are included; multi-week courses are filtered out.
  */
 
+import "../nyc-timezone" // must be first: scrapers build Dates in New York time
 import type { ScrapedClass } from "../../types/scraped"
 import { withBrowser, delay } from "./playwright-utils"
 import type { Frame } from "playwright"

@@ -5,6 +5,42 @@
 
 export const TIME_ZONE = "America/New_York"
 
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+const partsFmt = new Intl.DateTimeFormat("en-US", {
+  timeZone: TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  weekday: "short",
+  hourCycle: "h23",
+})
+
+export type NyParts = { year: number; month: number; day: number; hour: number; minute: number; weekday: number }
+
+/** Calendar parts of `d` on a New York clock. month is 0-based, weekday 0 = Sunday. */
+export function nyParts(d: Date): NyParts {
+  const p: Record<string, string> = {}
+  for (const { type, value } of partsFmt.formatToParts(d)) p[type] = value
+  return {
+    year: Number(p.year),
+    month: Number(p.month) - 1,
+    day: Number(p.day),
+    hour: Number(p.hour) % 24,
+    minute: Number(p.minute),
+    weekday: WEEKDAYS.indexOf(p.weekday),
+  }
+}
+
+/** Same shape as Date#toDateString() ("Sat Nov 07 2026"), but for the New York calendar day. */
+export function nyDateKey(d: Date): string {
+  const p = nyParts(d)
+  return `${WEEKDAYS[p.weekday]} ${MONTHS[p.month]} ${String(p.day).padStart(2, "0")} ${p.year}`
+}
+
 /** "2 pm", "6:30 pm" */
 export function formatTime(d: Date): string {
   return d

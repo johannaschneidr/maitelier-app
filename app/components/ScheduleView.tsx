@@ -28,6 +28,7 @@ function saveSavedIds(ids: Set<string>): void {
 import Link from "next/link"
 import type { ScheduleItem } from "@/types/schedule"
 import { outboundHref, OUTBOUND_REL } from "@/lib/outbound"
+import { nyDateKey, nyParts, formatTime } from "@/lib/format"
 
 function formatDay(d: Date): string {
   return d.toLocaleDateString("en-US", {
@@ -38,9 +39,7 @@ function formatDay(d: Date): string {
 }
 
 function getStartOfToday(): Date {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  return d
+  return new Date(nyDateKey(new Date()))
 }
 
 function formatDayLabel(dayKey: string): string {
@@ -61,11 +60,7 @@ function formatDuration(durationMin: number): string {
 }
 
 function formatTimeShort(d: Date): string {
-  const h = d.getHours()
-  const m = d.getMinutes()
-  const hour = h % 12 || 12
-  const ampm = h < 12 ? "AM" : "PM"
-  return m === 0 ? `${hour} ${ampm}` : `${hour}:${m.toString().padStart(2, "0")} ${ampm}`
+  return formatTime(d)
 }
 
 function formatTimeRange(start: Date, end: Date): string {
@@ -124,9 +119,8 @@ function applyFilters(
   return items.filter((item) => {
     const start = new Date(item.session.startTime)
     const end = new Date(item.session.endTime)
-    const dateKey = start.toDateString()
-    const hour = start.getHours()
-    const day = start.getDay()
+    const dateKey = nyDateKey(start)
+    const { hour, weekday: day } = nyParts(start)
     const isWeekend = day === 0 || day === 6
     const isWeekendMorning = isWeekend && hour >= 8 && hour < 12
     const isAfterWork = hour >= 18 && hour < 21
@@ -151,7 +145,7 @@ function groupByDay(items: ScheduleItem[]): Map<string, ScheduleItem[]> {
   const map = new Map<string, ScheduleItem[]>()
   for (const item of items) {
     const start = new Date(item.session.startTime)
-    const key = start.toDateString()
+    const key = nyDateKey(start)
     if (!map.has(key)) map.set(key, [])
     map.get(key)!.push(item)
   }
@@ -182,7 +176,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
   )
 
   const availableDates = useMemo(
-    () => [...new Set(items.map((i) => new Date(i.session.startTime).toDateString()))].sort((a, b) => new Date(a).getTime() - new Date(b).getTime()),
+    () => [...new Set(items.map((i) => nyDateKey(new Date(i.session.startTime))))].sort((a, b) => new Date(a).getTime() - new Date(b).getTime()),
     [items]
   )
 
@@ -203,7 +197,7 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
   useEffect(() => { setVisibleCount(10) }, [filtered])
   const fromToday = useMemo(() => {
     const startOfToday = getStartOfToday()
-    return filtered.filter((item) => new Date(item.session.startTime) >= startOfToday)
+    return filtered.filter((item) => new Date(nyDateKey(new Date(item.session.startTime))) >= startOfToday)
   }, [filtered])
   const visibleItems = useMemo(() => fromToday.slice(0, visibleCount), [fromToday, visibleCount])
   const hasMore = fromToday.length > visibleCount
@@ -223,8 +217,9 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
     const minDate = startOfToday.getTime()
     const maxDate = keys.length > 0 ? new Date(keys[keys.length - 1]).getTime() : minDate
     const allDates: string[] = []
-    for (let t = minDate; t <= maxDate; t += 24 * 60 * 60 * 1000) {
-      allDates.push(new Date(t).toDateString())
+    // Step by calendar day (not 24h) so DST changes don't skip or repeat a day
+    for (const d = new Date(minDate); d.getTime() <= maxDate; d.setDate(d.getDate() + 1)) {
+      allDates.push(d.toDateString())
     }
     return allDates
   }, [byDay, selectedDates])
@@ -666,11 +661,10 @@ export function ScheduleView({ items, pastItems = [] }: { items: ScheduleItem[];
               ) : (
                 pastSortedDays.map((dayKey) => {
                   const dayItems = pastByDay.get(dayKey)!
-                  const firstStart = new Date(dayItems[0].session.startTime)
                   return (
                     <section key={dayKey}>
                       <h2 className="font-sans text-xs font-semibold uppercase tracking-wider text-cream-soft mb-3">
-                        {formatDay(firstStart)}
+                        {formatDay(new Date(dayKey))}
                       </h2>
                       <ul className="space-y-2">
                         {dayItems.map((item) => {

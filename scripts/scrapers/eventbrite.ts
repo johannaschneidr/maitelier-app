@@ -2,6 +2,7 @@
  * Eventbrite organizer page scraper.
  * Handles all Eventbrite sources from config.
  */
+import "../nyc-timezone" // must be first: scrapers build Dates in New York time
 import * as cheerio from "cheerio"
 import type { ScrapedClass } from "../../types/scraped"
 import { fetchWithDelay, parsePrice } from "./utils"

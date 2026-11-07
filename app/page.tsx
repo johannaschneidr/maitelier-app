@@ -1,6 +1,7 @@
 import { getUpcomingSessions, getPastSessions, getTemplates, getSources } from "@/lib/queries"
 import { ScheduleView } from "@/app/components/ScheduleView"
 import type { ScheduleItem } from "@/types/schedule"
+import { TIME_ZONE } from "@/lib/format"
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://maitelier.com"
 
@@ -144,7 +145,7 @@ export default async function Home() {
                   <time dateTime={item.session.startTime}>
                     {new Date(item.session.startTime).toLocaleString("en-US", {
                       weekday: "long", month: "long", day: "numeric",
-                      hour: "numeric", minute: "2-digit",
+                      hour: "numeric", minute: "2-digit", timeZone: TIME_ZONE,
                     })}
                   </time>
                   {item.template.price > 0 && <p>Price: ${item.template.price}</p>}

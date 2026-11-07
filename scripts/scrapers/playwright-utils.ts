@@ -9,6 +9,8 @@ export async function withBrowser<T>(fn: (page: Page) => Promise<T>): Promise<T>
     const context = await browser.newContext({
       userAgent: USER_AGENT,
       viewport: { width: 1280, height: 800 },
+      // Booking widgets (FareHarbor, Wix) render times in the browser's zone — make it NYC
+      timezoneId: "America/New_York",
     })
     const page = await context.newPage()
     return await fn(page)
