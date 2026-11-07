@@ -1,0 +1,43 @@
+rules_version = '2';
+
+// Public site: anyone can read the catalog, nobody can write it from a browser.
+// Scrapers/seed scripts must write with the Firebase Admin SDK (which bypasses these rules).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /Source/{id}           { allow read: if true; allow write: if false; }
+    match /ClassTemplate/{id}    { allow read: if true; allow write: if false; }
+    match /ClassSession/{id}     { allow read: if true; allow write: if false; }
+    match /StudioInstructor/{id} { allow read: if true; allow write: if false; }
+
+    // Outbound click counters, written by app/go/[slug]/route.ts.
+    // The only allowed write is "+1 to the total and +1 to the current month" for a studio that exists.
+    match /StudioStats/{sourceId} {
+      allow read: if false;
+      allow create, update: if exists(/databases/$(database)/documents/Source/$(sourceId))
+        && isOneClick();
+
+      function prevTotal() {
+        return resource == null ? 0 : resource.data.get('outboundClicks', 0);
+      }
+      function prevByMonth() {
+        return resource == null ? {} : resource.data.get('outboundClicksByMonth', {});
+      }
+      // "YYYY-MM" in UTC, matching new Date().toISOString().slice(0, 7) in the route.
+      function currentMonth() {
+        let m = request.time.month();
+        return string(request.time.year()) + '-' + (m < 10 ? '0' + string(m) : string(m));
+      }
+      function isOneClick() {
+        let next = request.resource.data;
+        let month = currentMonth();
+        return next.keys().hasOnly(['outboundClicks', 'outboundClicksByMonth'])
+          && next.outboundClicks == prevTotal() + 1
+          && next.outboundClicksByMonth.diff(prevByMonth()).affectedKeys().hasOnly([month])
+          && next.outboundClicksByMonth[month] == prevByMonth().get(month, 0) + 1;
+      }
+    }
+
+    // Everything else (incl. UserSavedClass until auth exists) is closed.
+  }
+}

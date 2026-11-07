@@ -8,6 +8,8 @@ import {
   where,
   Timestamp,
   limit,
+  setDoc,
+  increment,
 } from "firebase/firestore"
 import { db } from "./firebase"
 import type { ClassSession, ClassTemplate, StudioInstructor, Source, UserSavedClass } from "@/types/db"
@@ -197,4 +199,24 @@ export async function getSavedClassesByUserId(userId: string): Promise<UserSaved
   })
   list.sort((a, b) => b.savedAt.getTime() - a.savedAt.getTime())
   return list
+}
+
+export async function getTemplateById(id: string): Promise<ClassTemplate | null> {
+  const snap = await getDoc(doc(db, "ClassTemplate", id))
+  if (!snap.exists()) return null
+  return docToTemplate(snap.id, snap.data() as Record<string, unknown>)
+}
+
+/**
+ * Bump outbound click counters in StudioStats/{sourceId}: total and byMonth.YYYY-MM.
+ * Kept out of the Source doc so Firestore rules can allow exactly this +1 write and nothing else
+ * (see firestore.rules).
+ */
+export async function incrementOutboundClicks(sourceId: string, at = new Date()): Promise<void> {
+  const month = at.toISOString().slice(0, 7)
+  await setDoc(
+    doc(db, "StudioStats", sourceId),
+    { outboundClicks: increment(1), outboundClicksByMonth: { [month]: increment(1) } },
+    { merge: true }
+  )
 }

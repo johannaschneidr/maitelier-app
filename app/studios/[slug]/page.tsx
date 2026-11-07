@@ -5,6 +5,7 @@ import { StudioImage } from "@/app/components/StudioImage"
 import { StudioGallery } from "@/app/components/StudioGallery"
 import { ScheduleList, type ScheduleRow } from "@/app/components/ScheduleList"
 import type { ClassSession, ClassTemplate } from "@/types/db"
+import { outboundHref, OUTBOUND_REL } from "@/lib/outbound"
 
 function formatDateTime(start: Date, end: Date): string {
   const date = start.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
@@ -69,7 +70,7 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
     price: template.price,
     capacity: session.capacity,
     spotsLeft: session.spotsLeft,
-    bookUrl: template.url ?? externalUrl,
+    bookUrl: template.url || externalUrl ? outboundHref(slug, "detail_schedule", template.url ? template.id : undefined) : undefined,
   }))
 
   const addressParts = source.address?.split(",") ?? []
@@ -198,9 +199,9 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
             <div className="flex flex-wrap gap-3 mt-2">
               {externalUrl && (
                 <a
-                  href={externalUrl}
+                  href={outboundHref(slug, "detail_page")}
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel={OUTBOUND_REL}
                   className="font-sans text-xs font-medium text-cream-soft hover:text-cream underline"
                 >
                   {source.bookingUrl ? "Book classes" : "Website"}
@@ -230,7 +231,7 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
         <h2 className="font-sans text-xs font-semibold uppercase tracking-wider text-cream-soft mb-4">
           Upcoming classes
         </h2>
-        <ScheduleList rows={scheduleRows} fallbackUrl={externalUrl} />
+        <ScheduleList rows={scheduleRows} fallbackUrl={externalUrl ? outboundHref(slug, "detail_schedule_empty") : undefined} />
 
         {/* Photo gallery */}
         {galleryPhotos.length > 0 && (
