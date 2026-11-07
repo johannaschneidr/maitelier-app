@@ -53,6 +53,19 @@ export type Source = {
     /** Direct booking URL for this specific class */
     url?: string
     createdAt: Date
+    /**
+     * Optional class facts (AEO facts block). Not written by scrapers yet —
+     * add them by hand in Firestore and they appear on the class page.
+     */
+    level?: "beginner" | "all-levels" | "intermediate" | "advanced"
+    /** e.g. "2–3 bowls or mugs" */
+    whatYouMake?: string
+    takeHome?: "same-day" | "fired-later" | "no"
+    /** e.g. "3 weeks" — shown when takeHome is "fired-later" */
+    pickupAfter?: string
+    materialsIncluded?: boolean
+    byob?: boolean
+    minAge?: number
   }
   
   export type ClassSession = {
@@ -63,6 +76,8 @@ export type Source = {
     capacity: number
     spotsLeft: number
     createdAt: Date
+    /** When a scrape last confirmed this session (lastCheckedAt, else createdAt). Undefined if unknown. */
+    lastCheckedAt?: Date
   }
   
   export type UserSavedClass = {

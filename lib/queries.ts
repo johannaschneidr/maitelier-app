@@ -22,6 +22,14 @@ function toDate(value: unknown): Date {
   return new Date()
 }
 
+function optionalDate(value: unknown): Date | undefined {
+  if (value instanceof Date) return value
+  if (value && typeof value === "object" && "toDate" in value && typeof (value as Timestamp).toDate === "function") {
+    return (value as Timestamp).toDate()
+  }
+  return undefined
+}
+
 function docToSession(id: string, data: Record<string, unknown>): ClassSession {
   return {
     id,
@@ -30,8 +38,16 @@ function docToSession(id: string, data: Record<string, unknown>): ClassSession {
     endTime: toDate(data.endTime),
     capacity: (data.capacity as number) ?? 0,
     spotsLeft: (data.spotsLeft as number) ?? 0,
-    createdAt: toDate(data.createdAt)
+    createdAt: toDate(data.createdAt),
+    lastCheckedAt: optionalDate(data.lastCheckedAt) ?? optionalDate(data.last_checked_at) ?? optionalDate(data.createdAt),
   }
+}
+
+/** Every upcoming session (no limit) — for the catalog behind class, studio and craft pages. */
+export async function getAllUpcomingSessions(): Promise<ClassSession[]> {
+  const q = query(collection(db, "ClassSession"), where("startTime", ">=", new Date()), orderBy("startTime", "asc"))
+  const snap = await getDocs(q)
+  return snap.docs.map((d) => docToSession(d.id, d.data() as Record<string, unknown>))
 }
 
 export async function getUpcomingSessions(upcomingOnly = true): Promise<ClassSession[]> {
@@ -80,7 +96,14 @@ function docToTemplate(id: string, data: Record<string, unknown>): ClassTemplate
     durationMin: (data.durationMin as number) ?? 0,
     price: (data.price as number) ?? 0,
     url: data.url as string | undefined,
-    createdAt: toDate(data.createdAt)
+    createdAt: toDate(data.createdAt),
+    level: data.level as ClassTemplate["level"],
+    whatYouMake: data.whatYouMake as string | undefined,
+    takeHome: data.takeHome as ClassTemplate["takeHome"],
+    pickupAfter: data.pickupAfter as string | undefined,
+    materialsIncluded: data.materialsIncluded as boolean | undefined,
+    byob: data.byob as boolean | undefined,
+    minAge: data.minAge as number | undefined,
   }
 }
 
