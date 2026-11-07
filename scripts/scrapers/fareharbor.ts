@@ -70,15 +70,28 @@ async function getAvailableDaysSmall(frame: Frame): Promise<{ day: string; datet
   })
 }
 
-async function getSessionsForDaySmall(frame: Frame): Promise<{ title: string; time: string; isSeries: boolean }[]> {
+type DaySession = { title: string; time: string; isSeries: boolean; price: number }
+
+async function getSessionsForDaySmall(frame: Frame): Promise<DaySession[]> {
   return frame.evaluate(() => {
     return [...document.querySelectorAll("div.item-group")].flatMap((group) => {
       const title = group.querySelector("p.fh-text.fh-text--display-md")?.textContent?.trim() ?? ""
       if (!title) return []
-      return [...group.querySelectorAll("button.calendarBlock:not(.not-bookable)")].map((slot) => {
-        const time = slot.querySelector("[data-test-id=\"availability-item-title\"]")?.textContent?.trim() ?? ""
-        const isSeries = /Ends\s+\d/.test((slot as HTMLElement).innerText)
-        return { title, time, isSeries }
+      // FareHarbor's current markup is button.availability-cell (bookable ones carry
+      // data-test-bookability-status="bookable"); the older button.calendarBlock is kept as a fallback.
+      const slots = [
+        ...group.querySelectorAll('button.availability-cell[data-test-bookability-status="bookable"]'),
+        ...group.querySelectorAll("button.calendarBlock:not(.not-bookable)"),
+      ]
+      return slots.map((slot) => {
+        const text = (slot as HTMLElement).innerText
+        const time =
+          slot.querySelector(".availability-cell__heading, [data-test-id=\"availability-item-title\"]")?.textContent?.trim() ??
+          text.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ??
+          ""
+        const price = Number(text.match(/\$([\d,]+(?:\.\d{2})?)/)?.[1]?.replace(/,/g, "") ?? 0)
+        const isSeries = /Ends\s+\d/.test(text)
+        return { title, time, isSeries, price }
       })
     })
   })
@@ -125,14 +138,14 @@ async function scrapeSmallCalendar(
         continue
       }
 
-      let sessions: { title: string; time: string; isSeries: boolean }[]
+      let sessions: DaySession[]
       try {
         sessions = await getSessionsForDaySmall(frame)
       } catch {
         continue
       }
 
-      for (const { title, time, isSeries } of sessions) {
+      for (const { title, time, isSeries, price } of sessions) {
         if (isSeries) continue
         if (/^[A-Z]{2,4}\d+:/.test(title)) continue // course codes like GB3:, FW1:
 
@@ -152,7 +165,7 @@ async function scrapeSmallCalendar(
           startTime,
           endTime,
           durationMin: 120,
-          price: 0,
+          price,
           externalId,
           neighborhood,
         })
