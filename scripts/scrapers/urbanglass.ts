@@ -19,6 +19,7 @@
  * bookable item; startTime = first session date.
  */
 
+import "../nyc-timezone" // must be first: scrapers build Dates in New York time
 import * as cheerio from "cheerio"
 import type { ScrapedClass } from "../../types/scraped"
 import { fetchWithDelay } from "./utils"

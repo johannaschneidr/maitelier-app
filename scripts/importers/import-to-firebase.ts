@@ -16,6 +16,7 @@ import {
   getDocs,
   query,
   where,
+  writeBatch,
   serverTimestamp,
 } from "firebase/firestore"
 import type { Source, StudioInstructor, ClassTemplate, ClassSession } from "../../types/db"
@@ -147,12 +148,22 @@ async function getOrCreateTemplate(
   })
 }
 
-/** Create ClassSession */
-async function createSession(
+/**
+ * Stable session ID: same class at the same time → same document, no matter how many times
+ * or on which machine the scraper runs. Keeps favorites (stored by session ID) working
+ * across daily re-imports.
+ */
+function sessionDocId(templateId: string, startTime: Date): string {
+  return `${templateId}_${startTime.toISOString().replace(/[:.]/g, "")}`
+}
+
+/** Create or overwrite a ClassSession */
+async function upsertSession(
+  sessionId: string,
   templateId: string,
   scraped: ScrapedClass
 ): Promise<void> {
-  const ref = doc(collection(db, "ClassSession"))
+  const ref = doc(db, "ClassSession", sessionId)
   // -1 = unknown (UI shows "Check page for availability")
   const capacity = scraped.capacity ?? -1
   const spotsLeft = scraped.spotsLeft ?? (capacity >= 0 ? capacity : -1)
@@ -168,15 +179,49 @@ async function createSession(
 }
 
 /**
+ * The scrape is the source of truth for a studio's upcoming calendar: delete any upcoming
+ * session for this source that the scrape didn't produce (cancelled classes, old copies
+ * written with the wrong time zone, classes the curation step now filters out).
+ * Past sessions are left alone.
+ */
+async function removeStaleUpcomingSessions(sourceId: string, keepIds: Set<string>): Promise<number> {
+  const templates = await getDocs(query(collection(db, "ClassTemplate"), where("sourceId", "==", sourceId)))
+  const templateIds = templates.docs.map((d) => d.id)
+  const now = new Date()
+  const stale: ReturnType<typeof doc>[] = []
+  for (let i = 0; i < templateIds.length; i += 30) {
+    const chunk = templateIds.slice(i, i + 30)
+    const snap = await getDocs(query(collection(db, "ClassSession"), where("templateId", "in", chunk)))
+    for (const d of snap.docs) {
+      const start = (d.data().startTime as { toDate(): Date }).toDate()
+      if (start >= now && !keepIds.has(d.id)) stale.push(d.ref)
+    }
+  }
+  for (let i = 0; i < stale.length; i += 500) {
+    const batch = writeBatch(db)
+    stale.slice(i, i + 500).forEach((ref) => batch.delete(ref))
+    await batch.commit()
+  }
+  return stale.length
+}
+
+/**
  * Import scraped classes into Firebase.
  * Creates Source, Instructor, Template, Session as needed.
  */
-export async function importToFirebase(classes: ScrapedClass[]): Promise<{ imported: number; errors: string[] }> {
+export async function importToFirebase(
+  classes: ScrapedClass[],
+  /** Sources that were scraped successfully this run (even if every class was filtered out).
+   *  Their upcoming sessions are replaced by this run's results. Defaults to sources in `classes`. */
+  scrapedSources: Iterable<string> = classes.map((c) => c.sourceName)
+): Promise<{ imported: number; removed: number; errors: string[] }> {
   const errors: string[] = []
   let imported = 0
+  let removed = 0
 
   // Group by source
   const bySource = new Map<string, ScrapedClass[]>()
+  for (const name of scrapedSources) bySource.set(name, [])
   for (const c of classes) {
     const list = bySource.get(c.sourceName) ?? []
     list.push(c)
@@ -187,25 +232,40 @@ export async function importToFirebase(classes: ScrapedClass[]): Promise<{ impor
     try {
       const address = sourceClasses[0]?.address
       const neighborhood = sourceClasses[0]?.neighborhood
+      if (sourceClasses.length === 0) {
+        // Everything from this source was filtered out — just clear its upcoming sessions
+        const existing = await findSourceByName(sourceName)
+        if (existing) removed += await removeStaleUpcomingSessions(existing.id, new Set())
+        continue
+      }
       const sourceId = await getOrCreateSource(sourceName, address, neighborhood)
       const instructorId = await getOrCreateInstructor(
         sourceId,
         sourceClasses[0]?.instructor
       )
 
+      const written = new Set<string>()
+      let sourceOk = true
       for (const scraped of sourceClasses) {
         try {
           const templateId = await getOrCreateTemplate(sourceId, instructorId, scraped)
-          await createSession(templateId, scraped)
+          const sessionId = sessionDocId(templateId, scraped.startTime)
+          if (written.has(sessionId)) continue // same class + time listed twice on the site
+          await upsertSession(sessionId, templateId, scraped)
+          written.add(sessionId)
           imported++
         } catch (err) {
+          sourceOk = false
           errors.push(`${sourceName} / ${scraped.title}: ${String(err)}`)
         }
       }
+
+      // Only prune when every write succeeded, so a flaky run never deletes good data
+      if (sourceOk) removed += await removeStaleUpcomingSessions(sourceId, written)
     } catch (err) {
       errors.push(`${sourceName}: ${String(err)}`)
     }
   }
 
-  return { imported, errors }
+  return { imported, removed, errors }
 }

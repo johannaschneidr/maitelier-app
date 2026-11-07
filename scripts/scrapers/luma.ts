@@ -2,6 +2,7 @@
  * Luma calendar scraper.
  * Parses __NEXT_DATA__ JSON for accurate dates, end times, and availability.
  */
+import "../nyc-timezone" // must be first: scrapers build Dates in New York time
 import type { ScrapedClass } from "../../types/scraped"
 import { fetchWithDelay } from "./utils"
 import { getSourcesByPlatform } from "../config/sources"

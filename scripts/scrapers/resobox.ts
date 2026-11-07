@@ -7,6 +7,7 @@
  * Price: fetched from individual event pages (not on listing).
  */
 
+import "../nyc-timezone" // must be first: scrapers build Dates in New York time
 import * as cheerio from "cheerio"
 import type { ScrapedClass } from "../../types/scraped"
 import { fetchWithDelay } from "./utils"

@@ -7,6 +7,7 @@
  * Price: not shown on listing; Acuity booking links are in the excerpt but don't expose price.
  */
 
+import "../nyc-timezone" // must be first: scrapers build Dates in New York time
 import * as cheerio from "cheerio"
 import type { ScrapedClass } from "../../types/scraped"
 import { fetchWithDelay } from "./utils"

@@ -7,6 +7,7 @@
  * We parse dates from the title and fall back to body_html if needed.
  */
 
+import "../nyc-timezone" // must be first: scrapers build Dates in New York time
 import type { ScrapedClass } from "../../types/scraped"
 import { getSourcesByPlatform } from "../config/sources"
 import { parsePrice, parseDurationToMinutes } from "./utils"

@@ -8,9 +8,11 @@
  * Example: npm run scrape luma -- --clear
  */
 
+import "./nyc-timezone" // must be first: scrapers build Dates in New York time
 import { db } from "../lib/firebase"
 import { collection, getDocs, writeBatch } from "firebase/firestore"
 import { importToFirebase } from "./importers/import-to-firebase"
+import { curate, logDropped } from "./importers/curate"
 import { scrapeShopify } from "./scrapers/shopify"
 import { scrapeBrooklynBrainery } from "./scrapers/brainery"
 import { scrapeResoBox } from "./scrapers/resobox"
@@ -90,9 +92,13 @@ async function main() {
     return
   }
 
-  console.log("Importing to Firebase...")
-  const { imported, errors } = await importToFirebase(classes)
-  console.log(`✅ Imported ${imported} sessions`)
+  const scrapedSources = new Set(classes.map((c) => c.sourceName))
+  const { kept, dropped } = curate(classes)
+  logDropped(dropped)
+
+  console.log("\nImporting to Firebase...")
+  const { imported, removed, errors } = await importToFirebase(kept, scrapedSources)
+  console.log(`✅ Imported ${imported} sessions, removed ${removed} outdated upcoming sessions`)
   if (errors.length > 0) {
     console.error("Errors:", errors)
   }

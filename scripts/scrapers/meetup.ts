@@ -2,6 +2,7 @@
  * Meetup group events scraper.
  * Parses __NEXT_DATA__ / __APOLLO_STATE__ for structured event data.
  */
+import "../nyc-timezone" // must be first: scrapers build Dates in New York time
 import type { ScrapedClass } from "../../types/scraped"
 import { fetchWithDelay, inferNeighborhoodFromAddress } from "./utils"
 import { getSourcesByPlatform } from "../config/sources"
